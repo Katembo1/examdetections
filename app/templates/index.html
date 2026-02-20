@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lecturer Dashboard - Cheating Detection</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #0b1020;
+      --bg-alt: #111a2d;
+      --panel: #161f36;
+      --panel-strong: #1f2a44;
+      --accent: #23c9a8;
+      --accent-2: #ffb547;
+      --ink: #e9f0ff;
+      --muted: #9ab0d5;
+      --stroke: #263355;
+      --danger: #ff6b6b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 20% 10%, #1c2848 0%, transparent 60%),
+        radial-gradient(1000px 500px at 90% 20%, #1a3a3a 0%, transparent 55%),
+        linear-gradient(120deg, var(--bg) 0%, var(--bg-alt) 100%);
+      min-height: 100vh;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      padding: 18px;
+      min-height: 100vh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: var(--panel-strong);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    .title span {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .pill {
+      background: rgba(35, 201, 168, 0.12);
+      border: 1px solid rgba(35, 201, 168, 0.45);
+      color: var(--accent);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .left,
+    .right {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0.3px;
+    }
+
+    .label {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .field,
+    .select,
+    .button {
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: #0f1830;
+      color: var(--ink);
+      padding: 10px 12px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .field[readonly] {
+      color: #c2d1ef;
+    }
+
+    .button {
+      cursor: pointer;
+      background: linear-gradient(120deg, #203357, #1b2c4c);
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      transition: transform 0.2s ease, border 0.2s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(35, 201, 168, 0.5);
+    }
+
+    .button.accent {
+      background: linear-gradient(130deg, #1aa786, #23c9a8);
+      border-color: rgba(35, 201, 168, 0.7);
+      color: #04151a;
+    }
+
+    .button.warn {
+      background: linear-gradient(130deg, #ffb547, #f38b2c);
+      border-color: rgba(255, 181, 71, 0.8);
+      color: #321c00;
+    }
+
+    .button.danger {
+      background: linear-gradient(130deg, #ff7b7b, #ff6b6b);
+      border-color: rgba(255, 107, 107, 0.8);
+      color: #3a0a0a;
+    }
+
+    .mono {
+      font-family: "IBM Plex Mono", "Consolas", monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .analytics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: #0f1730;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+      min-height: 92px;
+    }
+
+    .stat h3 {
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    .stat p {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+    }
+
+    .status.ok {
+      color: var(--accent);
+      border-color: rgba(35, 201, 168, 0.6);
+      background: rgba(35, 201, 168, 0.12);
+    }
+
+    .status.warn {
+      color: var(--accent-2);
+      border-color: rgba(255, 181, 71, 0.6);
+      background: rgba(255, 181, 71, 0.12);
+    }
+
+    .status.bad {
+      color: var(--danger);
+      border-color: rgba(255, 107, 107, 0.6);
+      background: rgba(255, 107, 107, 0.12);
+    }
+
+    .feed-wrap {
+      background: #0a142a;
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .feed {
+      width: 100%;
+      min-height: 420px;
+      max-height: calc(100vh - 220px);
+      border-radius: 12px;
+      border: 1px solid #16284b;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .counts {
+      white-space: pre-line;
+      background: #0f1730;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 110px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="title">
+        <h1>Lecturer View Dashboard</h1>
+        <span>Live invigilation, analytics, and camera controls</span>
+      </div>
+      <div class="pill">Live Monitoring</div>
+    </header>
+
+    <section class="left">
+      <div class="card">
+        <h2>Lecturer View</h2>
+        <div class="grid-2">
+          <div class="stack">
+            <div class="label">Course</div>
+            <input class="field" value="CS 302 - Data Structures" />
+          </div>
+          <div class="stack">
+            <div class="label">Session</div>
+            <input class="field" value="Midterm Monitoring" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="stack">
+            <div class="label">Room</div>
+            <input class="field" value="Lab 4B" />
+          </div>
+          <div class="stack">
+            <div class="label">Proctor</div>
+            <input class="field" value="Dr. Okoro" />
+          </div>
+        </div>
+        <div class="stack">
+          <div class="label">Model Path</div>
+          <input class="field" value="{{ model_path }}" readonly />
+        </div>
+        <div class="stack">
+          <div class="label">Active Camera</div>
+          <input id="activeCamera" class="field" value="{{ camera_ref }}" readonly />
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Analytics</h2>
+        <div class="analytics">
+          <div class="stat">
+            <h3>Stream FPS</h3>
+            <p id="analyticsFps">0</p>
+            <span class="mono">Live feed health</span>
+          </div>
+          <div class="stat">
+            <h3>Inference (ms)</h3>
+            <p id="analyticsInference">0</p>
+            <span class="mono">Model latency</span>
+          </div>
+          <div class="stat">
+            <h3>Objects Detected</h3>
+            <p id="analyticsObjects">0</p>
+            <span class="mono">Total in frame</span>
+          </div>
+          <div class="stat">
+            <h3>Confidence</h3>
+            <p id="analyticsConfidence">0.00</p>
+            <span class="mono">Current threshold</span>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="label">Detected Object Counts</div>
+          <div id="counts" class="counts">No objects detected.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Camera Management</h2>
+        <div class="stack">
+          <div class="label">Registered Cameras</div>
+          <select id="cameraSelect" class="select"></select>
+        </div>
+        <div class="grid-2">
+          <div class="stack">
+            <div class="label">Camera Label</div>
+            <input id="cameraLabel" class="field" placeholder="Front Row" />
+          </div>
+          <div class="stack">
+            <div class="label">Reference</div>
+            <input id="cameraRef" class="field" placeholder="0 or rtsp://" />
+          </div>
+        </div>
+        <div class="grid-3">
+          <button id="addCamera" class="button accent" type="button">Add Camera</button>
+          <button id="removeCamera" class="button danger" type="button">Remove</button>
+          <button id="testCamera" class="button warn" type="button">Test Camera</button>
+        </div>
+        <div class="stack">
+          <span id="cameraStatus" class="status warn">Awaiting test</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="feed-wrap">
+        <div class="grid-2">
+          <div class="stack">
+            <div class="label">Confidence Threshold</div>
+            <input id="conf" class="field" type="range" min="0" max="1" step="0.01" value="{{ confidence }}" />
+          </div>
+          <div class="stack">
+            <div class="label">Current Value</div>
+            <input id="confText" class="field" type="text" value="{{ confidence }}" readonly />
+          </div>
+        </div>
+        <img class="feed" src="/video_feed" alt="Live Detection Feed" />
+        <div class="stack">
+          <div class="label">Performance</div>
+          <div id="perf" class="counts">FPS: 0\nInference: 0 ms</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Video Upload</h2>
+        <div class="stack">
+          <div class="label">Upload a recorded session</div>
+          <input id="uploadInput" class="field" type="file" accept="video/*" />
+        </div>
+        <div class="grid-2">
+          <button id="uploadBtn" class="button accent" type="button">Upload Video</button>
+          <div class="stack">
+            <span id="uploadStatus" class="status warn">No file selected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const conf = document.getElementById('conf');
+    const confText = document.getElementById('confText');
+    const counts = document.getElementById('counts');
+    const perf = document.getElementById('perf');
+    const analyticsFps = document.getElementById('analyticsFps');
+    const analyticsInference = document.getElementById('analyticsInference');
+    const analyticsObjects = document.getElementById('analyticsObjects');
+    const analyticsConfidence = document.getElementById('analyticsConfidence');
+    const activeCamera = document.getElementById('activeCamera');
+
+    const cameraSelect = document.getElementById('cameraSelect');
+    const cameraLabel = document.getElementById('cameraLabel');
+    const cameraRef = document.getElementById('cameraRef');
+    const cameraStatus = document.getElementById('cameraStatus');
+    const testCamera = document.getElementById('testCamera');
+    const addCamera = document.getElementById('addCamera');
+    const removeCamera = document.getElementById('removeCamera');
+
+    const uploadInput = document.getElementById('uploadInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadStatus = document.getElementById('uploadStatus');
+
+    let cameras = [];
+    let activeRef = '{{ camera_ref }}';
+
+    function renderCameras() {
+      cameraSelect.innerHTML = '';
+      cameras.forEach((camera, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        const isActive = camera.ref === activeRef;
+        option.textContent = isActive ? `${camera.label} (${camera.ref}) - active` : `${camera.label} (${camera.ref})`;
+        if (isActive) {
+          option.selected = true;
+        }
+        cameraSelect.appendChild(option);
+      });
+      if (cameras.length === 0) {
+        const option = document.createElement('option');
+        option.textContent = 'No cameras registered';
+        option.disabled = true;
+        option.selected = true;
+        cameraSelect.appendChild(option);
+      }
+    }
+
+    function setStatus(element, text, state) {
+      element.textContent = text;
+      element.classList.remove('ok', 'warn', 'bad');
+      element.classList.add(state);
+    }
+
+    async function loadCameras() {
+      try {
+        const response = await fetch('/cameras');
+        const data = await response.json();
+        cameras = Array.isArray(data.cameras) ? data.cameras : [];
+        activeRef = data.active || activeRef;
+        renderCameras();
+      } catch (error) {
+        setStatus(cameraStatus, 'Failed to load cameras', 'bad');
+      }
+    }
+
+    async function setActiveCamera(ref) {
+      try {
+        const response = await fetch('/cameras/active', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ref})
+        });
+        const data = await response.json();
+        activeRef = data.active || ref;
+        renderCameras();
+        setStatus(cameraStatus, 'Active camera updated', 'ok');
+      } catch (error) {
+        setStatus(cameraStatus, 'Failed to update active camera', 'bad');
+      }
+    }
+
+    async function updateConfig(value) {
+      try {
+        await fetch('/config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({confidence: Number(value)})
+        });
+      } catch (error) {}
+    }
+
+    conf.addEventListener('input', (e) => {
+      const v = Number(e.target.value).toFixed(2);
+      confText.value = v;
+      analyticsConfidence.textContent = v;
+    });
+
+    conf.addEventListener('change', (e) => {
+      updateConfig(e.target.value);
+    });
+
+    cameraSelect.addEventListener('change', () => {
+      const index = Number(cameraSelect.value);
+      if (Number.isNaN(index) || !cameras[index]) {
+        return;
+      }
+      setActiveCamera(cameras[index].ref);
+    });
+
+    addCamera.addEventListener('click', async () => {
+      const label = cameraLabel.value.trim();
+      const ref = cameraRef.value.trim();
+      if (!label || !ref) {
+        setStatus(cameraStatus, 'Add a label and reference', 'warn');
+        return;
+      }
+      try {
+        const response = await fetch('/cameras', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({label, ref})
+        });
+        if (!response.ok) {
+          throw new Error('bad response');
+        }
+        const data = await response.json();
+        cameras = Array.isArray(data.cameras) ? data.cameras : cameras;
+        cameraLabel.value = '';
+        cameraRef.value = '';
+        renderCameras();
+        setStatus(cameraStatus, 'Camera added', 'ok');
+      } catch (error) {
+        setStatus(cameraStatus, 'Failed to add camera', 'bad');
+      }
+    });
+
+    removeCamera.addEventListener('click', async () => {
+      const index = Number(cameraSelect.value);
+      if (Number.isNaN(index) || !cameras[index]) {
+        setStatus(cameraStatus, 'Select a camera to remove', 'warn');
+        return;
+      }
+      try {
+        const response = await fetch(`/cameras/${index}`, { method: 'DELETE' });
+        const data = await response.json();
+        cameras = Array.isArray(data.cameras) ? data.cameras : [];
+        renderCameras();
+        setStatus(cameraStatus, 'Camera removed', 'ok');
+      } catch (error) {
+        setStatus(cameraStatus, 'Failed to remove camera', 'bad');
+      }
+    });
+
+    testCamera.addEventListener('click', async () => {
+      const ref = cameraRef.value.trim() || activeRef;
+      setStatus(cameraStatus, 'Testing feed...', 'warn');
+      try {
+        const response = await fetch('/cameras/test', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ref})
+        });
+        const data = await response.json();
+        if (data.status === 'ok') {
+          setStatus(cameraStatus, 'Stream is live', 'ok');
+        } else {
+          setStatus(cameraStatus, 'Stream error', 'bad');
+        }
+      } catch (error) {
+        setStatus(cameraStatus, 'Stream error', 'bad');
+      }
+    });
+
+    uploadInput.addEventListener('change', () => {
+      const file = uploadInput.files && uploadInput.files[0];
+      if (!file) {
+        setStatus(uploadStatus, 'No file selected', 'warn');
+        return;
+      }
+      setStatus(uploadStatus, `Ready: ${file.name}`, 'ok');
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+      const file = uploadInput.files && uploadInput.files[0];
+      if (!file) {
+        setStatus(uploadStatus, 'Select a file first', 'warn');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'ok') {
+          setStatus(uploadStatus, 'Upload complete', 'ok');
+        } else {
+          setStatus(uploadStatus, 'Upload failed', 'bad');
+        }
+      } catch (error) {
+        setStatus(uploadStatus, 'Upload failed', 'bad');
+      }
+    });
+
+    function parseTotal(countsText) {
+      if (!countsText || countsText.includes('No objects')) {
+        return 0;
+      }
+      return countsText
+        .split('\n')
+        .map((line) => line.split(':'))
+        .filter((parts) => parts.length === 2)
+        .map((parts) => Number(parts[1].trim()))
+        .filter((value) => !Number.isNaN(value))
+        .reduce((sum, value) => sum + value, 0);
+    }
+
+    async function refreshStats() {
+      try {
+        const response = await fetch('/stats');
+        const data = await response.json();
+        const countsText = data.counts || 'No objects detected.';
+        counts.textContent = countsText;
+        perf.textContent = `FPS: ${data.fps ?? 0}\nInference: ${data.inference_ms ?? 0} ms`;
+        analyticsFps.textContent = data.fps ?? 0;
+        analyticsInference.textContent = data.inference_ms ?? 0;
+        analyticsObjects.textContent = parseTotal(countsText);
+        analyticsConfidence.textContent = Number(data.confidence ?? 0).toFixed(2);
+        if (data.camera_ref) {
+          activeRef = data.camera_ref;
+          activeCamera.value = data.camera_ref;
+        }
+      } catch (error) {}
+    }
+
+    loadCameras();
+    setInterval(refreshStats, 500);
+    refreshStats();
+  </script>
+</body>
+</html>

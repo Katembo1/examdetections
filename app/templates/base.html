@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Cheating Detection{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  {% block extra_styles %}{% endblock %}
+</head>
+<body>
+
+  <!-- ── Drawer overlay ── -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <!-- ── Drawer (mobile nav) ── -->
+  <aside class="drawer" id="drawer" role="navigation" aria-label="Main navigation">
+    <div class="drawer-header">
+      <div class="drawer-brand">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+        </svg>
+        Cheating Detection
+      </div>
+      <button class="drawer-close" id="drawerClose" aria-label="Close menu">&times;</button>
+    </div>
+    {% for tab in [('feeds','Live Feeds'),('cameras','Cameras'),('analytics','Analytics'),('upload','Upload')] %}
+    <button class="drawer-tab{% if loop.first %} active{% endif %}" data-tab="{{ tab[0] }}">{{ tab[1] }}</button>
+    {% endfor %}
+  </aside>
+
+  <!-- ── Topbar ── -->
+  <nav class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="topbar-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      </svg>
+      Cheating Detection
+    </div>
+    <div class="topbar-nav">
+      {% for tab in [('feeds','Live Feeds'),('cameras','Cameras'),('analytics','Analytics'),('upload','Upload')] %}
+      <button class="nav-tab{% if loop.first %} active{% endif %}" data-tab="{{ tab[0] }}">{{ tab[1] }}</button>
+      {% endfor %}
+    </div>
+    <div class="topbar-right">
+      <span id="inferenceStatus" class="status warn">Inference paused</span>
+    </div>
+  </nav>
+
+  <!-- ── Page content ── -->
+  {% block content %}{% endblock %}
+
+  <!-- ── Base JS: tab switching + drawer ── -->
+  <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

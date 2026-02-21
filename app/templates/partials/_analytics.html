@@ -1,0 +1,39 @@
+<!-- ══════════════ ANALYTICS ══════════════ -->
+<div id="tab-analytics" class="panel">
+
+  <div class="stat-grid" style="margin-bottom:20px;">
+    <div class="stat-tile">
+      <div class="label">Stream FPS</div>
+      <div class="value" id="analyticsFps">0</div>
+      <div class="sublabel">avg across cameras</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Inference</div>
+      <div class="value" id="analyticsInference">0</div>
+      <div class="sublabel">ms avg latency</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Objects Detected</div>
+      <div class="value" id="analyticsObjects">0</div>
+      <div class="sublabel">total in frame</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Confidence</div>
+      <div class="value" id="analyticsConfidence">0.00</div>
+      <div class="sublabel">current threshold</div>
+    </div>
+  </div>
+
+  <div class="cols-2" style="gap:20px; align-items:start;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Detected Objects</span></div>
+      <div id="counts" class="counts-box">No objects detected.</div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Performance</span></div>
+      <div id="perf" class="counts-box">FPS: 0
+Inference: 0 ms</div>
+    </div>
+  </div>
+
+</div>

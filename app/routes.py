@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 import cv2
-from flask import Blueprint, Response, jsonify, render_template, request, send_from_directory
+from flask import Blueprint, Response, jsonify, render_template, request, send_from_directory, current_app
 from sqlalchemy.exc import OperationalError
 
 from .camera import (
@@ -402,6 +402,13 @@ def upload_stream() -> Response:
     imgsz = state.imgsz
     jpeg_quality = int(max(60, min(95, state.jpeg_quality)))
 
+    upload_id = None
+    try:
+        record = UploadRecord.query.filter_by(path=str(resolved)).first()
+        upload_id = record.id if record is not None else None
+    except Exception:
+        upload_id = None
+
     def generate() -> Any:
         cap = cv2.VideoCapture(str(resolved))
         if not cap.isOpened():
@@ -459,10 +466,9 @@ def upload_stream() -> Response:
         duration_sec = frame_index / max(fps_source, 1.0)
         avg_inference = total_inference / max(frame_index, 1)
         # persist analytics for uploaded video
-        record = UploadRecord.query.filter_by(path=str(resolved)).first()
-        if record is not None:
+        if upload_id is not None:
             db_record = UploadAnalytics(
-                upload_id=record.id,
+                upload_id=upload_id,
                 duration_sec=duration_sec,
                 frames=frame_index,
                 avg_inference_ms=avg_inference,
@@ -471,8 +477,9 @@ def upload_stream() -> Response:
             try:
                 from .db import db
 
-                db.session.add(db_record)
-                db.session.commit()
+                with current_app.app_context():
+                    db.session.add(db_record)
+                    db.session.commit()
             except Exception:
                 pass
         yield "event: done\ndata: {}\n\n"

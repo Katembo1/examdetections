@@ -1,68 +1,122 @@
-"""Model loading and inference logic."""
+"""Model loading and inference logic (pure ONNX Runtime — no torch/ultralytics)."""
+import ast
 import threading
 import time
 from typing import Any
 
 import cv2
 import numpy as np
-from ultralytics import YOLO
+import onnxruntime as ort
 
-from .config import MODEL_PATH, PT_FALLBACK_PATH
+from .config import MODEL_PATH
 
-_model: YOLO | None = None
+_session: ort.InferenceSession | None = None
+_class_names: dict[int, str] = {}
+_input_name: str = ""
 _model_lock = threading.Lock()
 
 
-def _load_model() -> YOLO:
-    """Load the YOLO model (ONNX or PT fallback)."""
-    global _model
-    if _model is None:
-        if MODEL_PATH.exists():
-            _model = YOLO(str(MODEL_PATH))
-        elif PT_FALLBACK_PATH.exists():
-            _model = YOLO(str(PT_FALLBACK_PATH))
+def _load_model() -> ort.InferenceSession:
+    global _session, _class_names, _input_name
+    if _session is None:
+        if not MODEL_PATH.exists():
+            raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
+        _session = ort.InferenceSession(str(MODEL_PATH), providers=["CPUExecutionProvider"])
+        _input_name = _session.get_inputs()[0].name
+        meta = _session.get_modelmeta().custom_metadata_map
+        if "names" in meta:
+            _class_names = ast.literal_eval(meta["names"])
         else:
-            raise FileNotFoundError(
-                f"Model not found. Expected ONNX: {MODEL_PATH} or PT fallback: {PT_FALLBACK_PATH}"
-            )
-    return _model
+            _class_names = {0: "cheating", 1: "not_cheating"}
+    return _session
+
+
+def _letterbox(img: np.ndarray, new_shape: int = 640) -> tuple[np.ndarray, float, tuple[int, int]]:
+    """Resize + pad to square while keeping aspect ratio."""
+    h, w = img.shape[:2]
+    r = min(new_shape / h, new_shape / w)
+    new_w, new_h = int(round(w * r)), int(round(h * r))
+    img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    pad_w = (new_shape - new_w) // 2
+    pad_h = (new_shape - new_h) // 2
+    img = cv2.copyMakeBorder(
+        img, pad_h, new_shape - new_h - pad_h,
+        pad_w, new_shape - new_w - pad_w,
+        cv2.BORDER_CONSTANT, value=(114, 114, 114),
+    )
+    return img, r, (pad_w, pad_h)
+
+
+def _xywh2xyxy(boxes: np.ndarray) -> np.ndarray:
+    out = np.empty_like(boxes)
+    out[:, 0] = boxes[:, 0] - boxes[:, 2] / 2
+    out[:, 1] = boxes[:, 1] - boxes[:, 3] / 2
+    out[:, 2] = boxes[:, 0] + boxes[:, 2] / 2
+    out[:, 3] = boxes[:, 1] + boxes[:, 3] / 2
+    return out
+
+
+def _nms(boxes: np.ndarray, scores: np.ndarray, iou_thresh: float = 0.45) -> list[int]:
+    x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    areas = (x2 - x1) * (y2 - y1)
+    order = scores.argsort()[::-1]
+    keep: list[int] = []
+    while order.size > 0:
+        i = int(order[0])
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+        inter = np.maximum(0.0, xx2 - xx1) * np.maximum(0.0, yy2 - yy1)
+        iou = inter / (areas[i] + areas[order[1:]] - inter + 1e-6)
+        order = order[1:][iou <= iou_thresh]
+    return keep
 
 
 def run_detection(frame: Any, confidence: float, imgsz: int) -> tuple[list[dict[str, Any]], float]:
-    """
-    Run object detection on a frame.
-    
-    Returns:
-        Tuple of (predictions, elapsed_ms)
-    """
-    model = _load_model()
+    """Run object detection on a frame. Returns (predictions, elapsed_ms)."""
+    session = _load_model()
+    orig_h, orig_w = frame.shape[:2]
+    img, ratio, (pad_w, pad_h) = _letterbox(frame, imgsz)
+    inp = img[..., ::-1].astype(np.float32) / 255.0   # BGR→RGB, normalise
+    inp = inp.transpose(2, 0, 1)[np.newaxis]            # HWC → NCHW
+
     start = time.perf_counter()
     with _model_lock:
-        result = model(frame, conf=confidence, imgsz=imgsz, verbose=False)[0]
+        outputs = session.run(None, {_input_name: inp})
     elapsed_ms = (time.perf_counter() - start) * 1000.0
 
-    predictions: list[dict[str, Any]] = []
-    boxes = result.boxes
-    if boxes is not None and boxes.xyxy is not None:
-        xyxy = boxes.xyxy.cpu().numpy()
-        confs = boxes.conf.cpu().numpy() if boxes.conf is not None else []
-        classes = boxes.cls.cpu().numpy() if boxes.cls is not None else []
+    # YOLOv8 ONNX output shape: [1, 4+nc, 8400]
+    preds = outputs[0][0].T                      # (8400, 4+nc)
+    boxes_raw = preds[:, :4]
+    cls_scores = preds[:, 4:]
+    cls_ids = cls_scores.argmax(axis=1)
+    cls_confs = cls_scores.max(axis=1)
 
-        for idx, coords in enumerate(xyxy):
-            x1, y1, x2, y2 = [int(value) for value in coords]
-            conf_value = float(confs[idx]) if len(confs) > idx else 0.0
-            cls_id = int(classes[idx]) if len(classes) > idx else -1
-            label = model.names.get(cls_id, str(cls_id)) if cls_id >= 0 else "object"
-            predictions.append(
-                {
-                    "x1": x1,
-                    "y1": y1,
-                    "x2": x2,
-                    "y2": y2,
-                    "confidence": conf_value,
-                    "label": label,
-                }
-            )
+    mask = cls_confs >= confidence
+    boxes_raw = boxes_raw[mask]
+    cls_ids = cls_ids[mask]
+    cls_confs = cls_confs[mask]
+
+    boxes_xyxy = _xywh2xyxy(boxes_raw)
+    keep = _nms(boxes_xyxy, cls_confs)
+
+    predictions: list[dict[str, Any]] = []
+    for i in keep:
+        x1 = int((boxes_xyxy[i, 0] - pad_w) / ratio)
+        y1 = int((boxes_xyxy[i, 1] - pad_h) / ratio)
+        x2 = int((boxes_xyxy[i, 2] - pad_w) / ratio)
+        y2 = int((boxes_xyxy[i, 3] - pad_h) / ratio)
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(orig_w, x2), min(orig_h, y2)
+        cls_id = int(cls_ids[i])
+        label = _class_names.get(cls_id, str(cls_id))
+        predictions.append({
+            "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+            "confidence": float(cls_confs[i]),
+            "label": label,
+        })
 
     return predictions, elapsed_ms
 

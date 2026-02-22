@@ -12,5 +12,16 @@
         <span id="uploadStatus" class="status warn">No file selected</span>
       </div>
     </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="card-header"><span class="card-title">Inference Result</span></div>
+      <span id="uploadInferenceStatus" class="status warn">No inference yet</span>
+      <div id="uploadInferenceSummary" class="counts-box" style="margin-top:10px; min-height:80px;">Upload a video to run inference.</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="uploadReplayBtn" class="btn btn-ghost" type="button" disabled>Replay</button>
+      </div>
+      <canvas id="uploadStreamCanvas" style="display:none; width:100%; margin-top:12px; border-radius:6px; border:1px solid var(--border); background:#000;"></canvas>
+      <img id="uploadInferencePreview" alt="Inference preview" style="display:none; width:100%; margin-top:12px; border-radius:6px; border:1px solid var(--border); background:#000;" />
+    </div>
   </div>
 </div>

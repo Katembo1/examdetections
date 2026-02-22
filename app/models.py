@@ -25,3 +25,17 @@ class UploadRecord(db.Model):
     path = db.Column(db.String(512), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+
+class UploadAnalytics(db.Model):
+    """Aggregated analytics for uploaded videos."""
+
+    __tablename__ = "upload_analytics"
+
+    id = db.Column(db.Integer, primary_key=True)
+    upload_id = db.Column(db.Integer, db.ForeignKey("uploads.id"), nullable=False)
+    duration_sec = db.Column(db.Float, nullable=False, default=0.0)
+    frames = db.Column(db.Integer, nullable=False, default=0)
+    avg_inference_ms = db.Column(db.Float, nullable=False, default=0.0)
+    counts_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+

@@ -47,6 +47,7 @@ def _init_camera_stats(camera_id: str, label: str, ref: str) -> None:
         "inference_ms": 0.0,
         "counts": {},
         "counts_text": "No objects detected.",
+        "counts_history": [],
         "last_frame": None,
         "running": False,
         "error": None,
@@ -189,6 +190,13 @@ class CameraWorker(threading.Thread):
                         stats["inference_ms"] = last_inference_ms
                         stats["counts"] = dict(last_counts)
                         stats["counts_text"] = format_counts(last_counts)
+                        now_ts = time.time()
+                        history = stats.get("counts_history", [])
+                        history.append((now_ts, dict(last_counts)))
+                        # keep only last 60s
+                        cutoff = now_ts - 60.0
+                        history = [item for item in history if item[0] >= cutoff]
+                        stats["counts_history"] = history
                         stats["last_frame"] = buffer.tobytes()
                         stats["ref"] = current_ref or stats["ref"]
 

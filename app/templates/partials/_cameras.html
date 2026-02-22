@@ -1,43 +1,40 @@
 <!-- ══════════════ CAMERAS ══════════════ -->
 <div id="tab-cameras" class="panel">
-  <div class="cols-2" style="gap:20px; align-items:start;">
 
-    <div class="card">
-      <div class="card-header"><span class="card-title">Add Camera</span></div>
-      <div class="formrow">
+  <!-- Add camera form -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header"><span class="card-title">Add Camera</span></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; padding:4px 0;">
+      <div style="flex:1; min-width:140px;">
         <label class="label">Label</label>
         <input id="cameraLabel" class="field" placeholder="e.g. Front Row" />
       </div>
-      <div class="formrow">
-        <label class="label">Reference</label>
+      <div style="flex:2; min-width:180px;">
+        <label class="label">Reference &nbsp;<span style="color:var(--muted);font-size:11px;">(0 · 1 · rtsp://… · /dev/video0)</span></label>
         <input id="cameraRef" class="field" placeholder="0  or  rtsp://..." />
       </div>
-      <div class="cols-2 formrow" style="margin-top:4px;">
-        <button id="addCamera"  class="btn btn-green" type="button">Add Camera</button>
-        <button id="testCamera" class="btn btn-amber" type="button">Test Stream</button>
-      </div>
-      <div class="formrow" style="margin-top:8px;">
-        <span id="addCameraStatus" class="status warn">–</span>
+      <div style="display:flex; gap:6px; padding-bottom:1px;">
+        <button id="testCamera" class="btn btn-amber" type="button">Test</button>
+        <button id="addCamera"  class="btn btn-green" type="button">Add</button>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-header"><span class="card-title">Registered Cameras</span></div>
-      <div class="formrow">
-        <label class="label">Model</label>
-        <input class="field" value="{{ model_path }}" readonly />
-      </div>
-      <div class="formrow">
-        <label class="label">Active Camera ID</label>
-        <input id="activeCamera" class="field" value="{{ camera_ref }}" readonly />
-      </div>
-      <div id="cameraList" class="counts-box" style="margin-top:8px; min-height:60px;">
-        No cameras registered.
-      </div>
-      <div class="formrow" style="margin-top:8px;">
-        <button id="removeCamera" class="btn btn-ghost" type="button">Remove Selected</button>
-      </div>
+    <div style="margin-top:6px;">
+      <span id="addCameraStatus" class="status warn">–</span>
     </div>
-
   </div>
+
+  <!-- Camera list -->
+  <div class="card">
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+      <span class="card-title">Registered Cameras</span>
+      <span id="cameraCountBadge" class="badge badge-amber">0 / 5</span>
+    </div>
+
+    <div id="cameraList" style="margin-top:4px;">
+      <div class="counts-box">No cameras registered.</div>
+    </div>
+  </div>
+
+  <!-- Hidden fields still used by JS -->
+  <input id="activeCamera" type="hidden" value="{{ camera_ref }}" />
 </div>

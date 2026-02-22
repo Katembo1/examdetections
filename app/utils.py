@@ -72,6 +72,12 @@ def format_counts(counts: dict[str, int]) -> str:
     return "\n".join(f"{label}: {count}" for label, count in sorted(counts.items()))
 
 
+def format_counts_rate(counts: dict[str, float], suffix: str = "/min") -> str:
+    """Format per-minute counts as a readable string."""
+    if not counts:
+        return "No objects detected."
+    return "\n".join(f"{label}: {value:.2f}{suffix}" for label, value in counts.items())
+
 def make_placeholder_frame() -> bytes:
     """Create a placeholder frame for stopped cameras."""
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -112,7 +118,7 @@ def test_camera_reference(ref: str) -> bool:
         return bool(ok)
 
 
-def save_upload(file_storage: Any) -> str:
+def save_upload(file_storage: Any) -> UploadRecord:
     """Save an uploaded file and create a database record."""
     UPLOADS_ROOT.mkdir(parents=True, exist_ok=True)
     filename = secure_filename(file_storage.filename or "upload")
@@ -123,4 +129,4 @@ def save_upload(file_storage: Any) -> str:
     record = UploadRecord(filename=filename, path=str(dest))
     db.session.add(record)
     db.session.commit()
-    return str(dest)
+    return record

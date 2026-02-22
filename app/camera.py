@@ -66,6 +66,8 @@ class CameraWorker(threading.Thread):
         predictions: list[dict[str, Any]] = []
         last_inference_ms = 0.0
         last_counts: dict[str, int] = {}
+        failed_attempts = 0
+        max_failed_attempts = 10
 
         while not self._stop_event.is_set():
             with state.lock:
@@ -83,7 +85,24 @@ class CameraWorker(threading.Thread):
                 if cap is not None:
                     cap.release()
                 current_ref = desired_ref
-                cap = cv2.VideoCapture(parse_camera_reference(current_ref))
+                parsed_ref = parse_camera_reference(current_ref)
+                cap = cv2.VideoCapture(parsed_ref)
+                
+                if not cap.isOpened():
+                    failed_attempts += 1
+                    print(f"[Camera {self.camera_id}] Failed to open camera/video source: {current_ref} (attempt {failed_attempts}/{max_failed_attempts})")
+                    
+                    if failed_attempts >= max_failed_attempts:
+                        print(f"[Camera {self.camera_id}] Max failed attempts reached. Check camera reference or use a video file/stream.")
+                        print(f"[Camera {self.camera_id}] Tip: Set ONNX_CAMERA_REFERENCE env var to a video file path or stream URL")
+                        break
+                    
+                    cap.release()
+                    cap = None
+                    time.sleep(min(2.0 * failed_attempts, 10.0))  # Exponential backoff
+                    continue
+                else:
+                    failed_attempts = 0  # Reset on success
 
             if cap is None or not cap.isOpened():
                 time.sleep(0.2)
@@ -91,6 +110,9 @@ class CameraWorker(threading.Thread):
 
             ok, frame = cap.read()
             if not ok:
+                # End of video file - loop it
+                if isinstance(parse_camera_reference(current_ref), str):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 time.sleep(0.01)
                 continue
 

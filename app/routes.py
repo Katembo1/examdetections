@@ -39,7 +39,19 @@ def index() -> str:
 def video_feed(camera_id: str) -> Response:
     if not any(camera.get("id") == camera_id for camera in get_cameras_snapshot()):
         return Response("Camera not found", status=404)
-    return Response(generate_frames(camera_id), mimetype="multipart/x-mixed-replace; boundary=frame")
+    
+    response = Response(
+        generate_frames(camera_id),
+        mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+    
+    # Security and caching headers for camera stream
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, private, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    return response
 
 
 @main_bp.route("/stats")

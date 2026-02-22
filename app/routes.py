@@ -20,7 +20,7 @@ from .camera import (
 )
 from .config import MAX_CAMERAS, get_active_model_path
 from .state import state
-from .utils import save_upload, test_camera_reference
+from .utils import enumerate_available_cameras, save_upload, test_camera_reference
 
 main_bp = Blueprint("main", __name__)
 
@@ -167,6 +167,17 @@ def camera_test() -> Any:
     ok = test_camera_reference(str(ref))
     status = "ok" if ok else "error"
     return jsonify({"status": status})
+
+
+@main_bp.route("/cameras/available", methods=["GET"])
+def cameras_available() -> Any:
+    """List available hardware cameras."""
+    available = enumerate_available_cameras(10)
+    return jsonify({
+        "available": available,
+        "count": len(available),
+        "message": "Hardware cameras detected" if available else "No hardware cameras found. Use video files or streams for cloud deployment."
+    })
 
 
 @main_bp.route("/upload", methods=["POST"])

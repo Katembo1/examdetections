@@ -19,6 +19,52 @@ def parse_camera_reference(value: str) -> int | str:
     return value
 
 
+def is_hardware_camera(ref: str) -> bool:
+    """Check if reference is a hardware camera (numeric index)."""
+    return str(ref).strip().isdigit()
+
+
+def try_open_camera_with_backends(camera_index: int) -> cv2.VideoCapture | None:
+    """Try to open a hardware camera with multiple backends."""
+    # Try different backends that work with USB/built-in cameras
+    backends = [
+        cv2.CAP_DSHOW,      # DirectShow (Windows)
+        cv2.CAP_MSMF,       # Microsoft Media Foundation (Windows)
+        cv2.CAP_V4L2,       # Video4Linux2 (Linux)
+        cv2.CAP_AVFOUNDATION, # AVFoundation (macOS)
+        cv2.CAP_ANY,        # Auto-detect
+    ]
+    
+    for backend in backends:
+        try:
+            cap = cv2.VideoCapture(camera_index, backend)
+            if cap.isOpened():
+                # Test if we can actually read from it
+                ok, frame = cap.read()
+                if ok and frame is not None:
+                    # Reset to beginning
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    return cap
+                cap.release()
+        except Exception:
+            continue
+    
+    return None
+
+
+def enumerate_available_cameras(max_cameras: int = 10) -> list[int]:
+    """Enumerate available hardware camera indices."""
+    available = []
+    for i in range(max_cameras):
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            ok, _ = cap.read()
+            if ok:
+                available.append(i)
+        cap.release()
+    return available
+
+
 def format_counts(counts: dict[str, int]) -> str:
     """Format object counts as a readable string."""
     if not counts:
@@ -45,13 +91,25 @@ def get_placeholder_frame() -> bytes:
 
 def test_camera_reference(ref: str) -> bool:
     """Test if a camera reference can be opened and read from."""
-    cap = cv2.VideoCapture(parse_camera_reference(ref))
-    if not cap.isOpened():
+    parsed_ref = parse_camera_reference(ref)
+    
+    # Use improved backend detection for hardware cameras
+    if is_hardware_camera(ref):
+        cap = try_open_camera_with_backends(parsed_ref)
+        if cap is None:
+            return False
+        ok, _ = cap.read()
         cap.release()
-        return False
-    ok, _frame = cap.read()
-    cap.release()
-    return bool(ok)
+        return bool(ok)
+    else:
+        # Video file or stream
+        cap = cv2.VideoCapture(parsed_ref)
+        if not cap.isOpened():
+            cap.release()
+            return False
+        ok, _ = cap.read()
+        cap.release()
+        return bool(ok)
 
 
 def save_upload(file_storage: Any) -> str:

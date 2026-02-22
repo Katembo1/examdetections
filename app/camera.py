@@ -10,7 +10,14 @@ from .db import db
 from .inference import build_counts, draw_overlay, run_detection
 from .models import CameraRecord
 from .state import state
-from .utils import format_counts, get_placeholder_frame, parse_camera_reference
+from .utils import (
+    enumerate_available_cameras,
+    format_counts,
+    get_placeholder_frame,
+    is_hardware_camera,
+    parse_camera_reference,
+    try_open_camera_with_backends,
+)
 
 
 def _get_camera_by_id_nolock(camera_id: str) -> dict[str, str] | None:
@@ -42,6 +49,7 @@ def _init_camera_stats(camera_id: str, label: str, ref: str) -> None:
         "counts_text": "No objects detected.",
         "last_frame": None,
         "running": False,
+        "error": None,
     }
 
 
@@ -86,15 +94,52 @@ class CameraWorker(threading.Thread):
                     cap.release()
                 current_ref = desired_ref
                 parsed_ref = parse_camera_reference(current_ref)
-                cap = cv2.VideoCapture(parsed_ref)
                 
-                if not cap.isOpened():
+                # Try opening camera with appropriate method
+                if is_hardware_camera(current_ref):
+                    # Hardware camera - try multiple backends
+                    print(f"[Camera {self.camera_id}] Attempting to open hardware camera index {parsed_ref}")
+                    cap = try_open_camera_with_backends(parsed_ref)
+                    if cap is None:
+                        # Show available cameras for debugging
+                        available = enumerate_available_cameras(5)
+                        if available:
+                            print(f"[Camera {self.camera_id}] Available camera indices: {available}")
+                        else:
+                            print(f"[Camera {self.camera_id}] No hardware cameras detected")
+                else:
+                    # Video file or stream
+                    print(f"[Camera {self.camera_id}] Attempting to open video source: {current_ref}")
+                    cap = cv2.VideoCapture(parsed_ref)
+                
+                if cap is None or not cap.isOpened():
                     failed_attempts += 1
-                    print(f"[Camera {self.camera_id}] Failed to open camera/video source: {current_ref} (attempt {failed_attempts}/{max_failed_attempts})")
+                    
+                    if is_hardware_camera(current_ref):
+                        available = enumerate_available_cameras(5)
+                        if available:
+                            error_msg = f"Camera index {parsed_ref} not found. Available cameras: {available}"
+                        else:
+                            error_msg = f"No hardware cameras detected. Use video file/stream or check camera permissions."
+                    else:
+                        error_msg = f"Failed to open '{current_ref}'. Check file path or stream URL."
+                    
+                    print(f"[Camera {self.camera_id}] {error_msg} (attempt {failed_attempts}/{max_failed_attempts})")
+                    
+                    with state.lock:
+                        stats = state.camera_stats.get(self.camera_id)
+                        if stats is not None:
+                            stats["error"] = error_msg
                     
                     if failed_attempts >= max_failed_attempts:
-                        print(f"[Camera {self.camera_id}] Max failed attempts reached. Check camera reference or use a video file/stream.")
-                        print(f"[Camera {self.camera_id}] Tip: Set ONNX_CAMERA_REFERENCE env var to a video file path or stream URL")
+                        final_error = error_msg + " — Max attempts reached."
+                        print(f"[Camera {self.camera_id}] {final_error}")
+                        
+                        with state.lock:
+                            stats = state.camera_stats.get(self.camera_id)
+                            if stats is not None:
+                                stats["error"] = final_error
+                                stats["running"] = False
                         break
                     
                     cap.release()
@@ -103,6 +148,10 @@ class CameraWorker(threading.Thread):
                     continue
                 else:
                     failed_attempts = 0  # Reset on success
+                    with state.lock:
+                        stats = state.camera_stats.get(self.camera_id)
+                        if stats is not None:
+                            stats["error"] = None
 
             if cap is None or not cap.isOpened():
                 time.sleep(0.2)
@@ -294,6 +343,7 @@ def get_camera_stats_snapshot() -> list[dict[str, Any]]:
                     "inference_ms": stats.get("inference_ms", 0.0),
                     "counts_text": stats.get("counts_text", "No objects detected."),
                     "running": stats.get("running", False),
+                    "error": stats.get("error"),
                 }
             )
     return snapshot

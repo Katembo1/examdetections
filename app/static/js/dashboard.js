@@ -130,7 +130,8 @@ function renderFeedGrid() {
       '<div class="feed-card-footer">' +
         '<span id="camFps-' + camera.id + '">FPS: 0</span>' +
         '<span id="camInf-' + camera.id + '">INF: 0 ms</span>' +
-      '</div>';
+      '</div>' +
+      '<div id="camError-' + camera.id + '" class="feed-error" style="display: none; padding: 10px 14px; background: var(--danger-bg); border-top: 1px solid var(--danger-border); color: var(--danger); font-size: 11px; font-family: monospace;"></div>';
     feedGrid.appendChild(card);
   });
 }
@@ -339,16 +340,27 @@ async function refreshStats() {
       const inf     = document.getElementById('camInf-' + cam.id);
       const run     = document.getElementById('camRunning-' + cam.id);
       const listRun = document.getElementById('listRunning-' + cam.id);
+      const error   = document.getElementById('camError-' + cam.id);
 
       if (fps) fps.textContent = 'FPS: ' + (cam.fps ?? 0).toFixed(1);
       if (inf) inf.textContent = 'INF: ' + (cam.inference_ms ?? 0).toFixed(1) + ' ms';
 
       const running = cam.running === true;
       const label   = running ? 'Running' : 'Stopped';
-      const cls     = 'status ' + (running ? 'ok' : 'warn');
+      const cls     = running ? 'ok' : (cam.error ? 'bad' : 'warn');
+      const statusCls = 'status ' + cls;
 
-      if (run)     { run.textContent     = label; run.className     = cls; }
-      if (listRun) { listRun.textContent = label; listRun.className = cls; }
+      if (run)     { run.textContent     = label; run.className     = statusCls; }
+      if (listRun) { listRun.textContent = label; listRun.className = statusCls; }
+      
+      if (error) {
+        if (cam.error) {
+          error.textContent = '⚠ ' + cam.error;
+          error.style.display = 'block';
+        } else {
+          error.style.display = 'none';
+        }
+      }
     });
   } catch { /* silent */ }
 }

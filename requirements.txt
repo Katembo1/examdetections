@@ -6,3 +6,4 @@ opencv-python==4.10.0.84
 ultralytics==8.4.14
 onnx==1.19.1
 onnxruntime==1.21.1
+gunicorn==21.2.0

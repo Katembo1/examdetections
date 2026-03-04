@@ -46,6 +46,7 @@ def create_app() -> Flask:
 
     with app.app_context():
         try:
+            db.create_all()
             inspector = inspect(db.engine)
             if inspector.has_table("cameras"):
                 init_camera_store()

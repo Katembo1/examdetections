@@ -301,7 +301,11 @@ addCamera.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label, ref }),
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'error'); }
+    if (!res.ok) {
+      let errMsg = 'error';
+      try { const e = await res.json(); errMsg = e.error || 'error'; } catch { errMsg = `Server error (${res.status})`; }
+      throw new Error(errMsg);
+    }
     const data = await res.json();
     cameras    = Array.isArray(data.cameras) ? data.cameras : cameras;
     maxCameras = Number(data.max) || maxCameras;

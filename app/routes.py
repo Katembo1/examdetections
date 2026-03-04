@@ -174,6 +174,9 @@ def cameras() -> Any:
         cameras_list = add_camera(label, ref)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.exception("Unexpected error adding camera: %s", exc)
+        return jsonify({"error": "Failed to add camera"}), 500
     return jsonify({"cameras": cameras_list, "active": get_active_camera_id(), "max": MAX_CAMERAS})
 
 

@@ -681,3 +681,187 @@ refreshStats();
     new MutationObserver(syncWsCameraSelect).observe(mainSelect, { childList: true });
   }
 })();
+
+/* ══════════════════════════════════════════
+   CLIENT DEVICE CAMERA
+══════════════════════════════════════════ */
+(function () {
+  const clientCameraBtn = document.getElementById('clientCameraBtn');
+  const clientCameraModal = document.getElementById('clientCameraModal');
+  const clientCameraModalClose = document.getElementById('clientCameraModalClose');
+  const clientCameraStartBtn = document.getElementById('clientCameraStartBtn');
+  const clientCameraStopBtn = document.getElementById('clientCameraStopBtn');
+  const clientCameraStatus = document.getElementById('clientCameraStatus');
+  const clientCameraVideo = document.getElementById('clientCameraVideo');
+  const clientCameraCanvas = document.getElementById('clientCameraCanvas');
+  const clientCameraFps = document.getElementById('clientCameraFps');
+  const clientCameraInf = document.getElementById('clientCameraInf');
+  const clientCameraDetections = document.getElementById('clientCameraDetections');
+
+  if (!clientCameraBtn || !clientCameraModal) return;
+
+  let mediaStream = null;
+  let socket = null;
+  let captureInterval = null;
+  let isStreaming = false;
+
+  /* Open modal */
+  clientCameraBtn.addEventListener('click', () => {
+    clientCameraModal.style.display = 'flex';
+  });
+
+  /* Close modal */
+  clientCameraModalClose.addEventListener('click', () => {
+    stopClientCamera();
+    clientCameraModal.style.display = 'none';
+  });
+
+  /* Start camera */
+  clientCameraStartBtn.addEventListener('click', async () => {
+    try {
+      setStatus(clientCameraStatus, 'Requesting camera access...', 'warn');
+      
+      // Get user media
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: false
+      });
+
+      clientCameraVideo.srcObject = mediaStream;
+      await clientCameraVideo.play();
+
+      // Initialize WebSocket
+      socket = io({ transports: ['websocket'] });
+      
+      socket.on('connect', () => {
+        setStatus(clientCameraStatus, 'Connected', 'ok');
+        socket.emit('client_stream_start');
+      });
+
+      socket.on('client_stream_ready', () => {
+        setStatus(clientCameraStatus, 'Streaming', 'ok');
+        isStreaming = true;
+        startCapture();
+      });
+
+      socket.on('client_frame_result', (msg) => {
+        // Display processed frame
+        const img = new Image();
+        img.onload = () => {
+          if (clientCameraCanvas.width !== img.naturalWidth) {
+            clientCameraCanvas.width = img.naturalWidth;
+          }
+          if (clientCameraCanvas.height !== img.naturalHeight) {
+            clientCameraCanvas.height = img.naturalHeight;
+          }
+          const ctx = clientCameraCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = 'data:image/jpeg;base64,' + msg.data;
+
+        // Update stats
+        if (clientCameraFps) clientCameraFps.textContent = msg.fps || '—';
+        if (clientCameraInf) clientCameraInf.textContent = msg.inference_ms || '—';
+        if (clientCameraDetections) {
+          clientCameraDetections.textContent = msg.counts_text || 'No detections';
+        }
+      });
+
+      socket.on('error', (msg) => {
+        console.error('Socket error:', msg);
+        setStatus(clientCameraStatus, 'Error: ' + (msg.msg || 'Unknown'), 'bad');
+      });
+
+      socket.on('disconnect', () => {
+        setStatus(clientCameraStatus, 'Disconnected', 'bad');
+        stopClientCamera();
+      });
+
+      clientCameraStartBtn.disabled = true;
+      clientCameraStopBtn.disabled = false;
+
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setStatus(clientCameraStatus, 'Camera access denied', 'bad');
+      stopClientCamera();
+    }
+  });
+
+  /* Stop camera */
+  clientCameraStopBtn.addEventListener('click', stopClientCamera);
+
+  function startCapture() {
+    if (captureInterval) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const targetFps = 15; // Send 15 frames per second to server
+
+    captureInterval = setInterval(() => {
+      if (!isStreaming || !clientCameraVideo.videoWidth) return;
+
+      // Set canvas size to match video
+      if (canvas.width !== clientCameraVideo.videoWidth) {
+        canvas.width = clientCameraVideo.videoWidth;
+        canvas.height = clientCameraVideo.videoHeight;
+      }
+
+      // Draw current video frame to canvas
+      ctx.drawImage(clientCameraVideo, 0, 0);
+
+      // Convert to JPEG and send via WebSocket
+      canvas.toBlob((blob) => {
+        if (!blob || !socket) return;
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result;
+          socket.emit('client_frame', { data: base64data });
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.85);
+
+    }, 1000 / targetFps);
+  }
+
+  function stopClientCamera() {
+    isStreaming = false;
+
+    // Stop capture interval
+    if (captureInterval) {
+      clearInterval(captureInterval);
+      captureInterval = null;
+    }
+
+    // Stop media stream
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+
+    // Disconnect socket
+    if (socket) {
+      socket.emit('client_stream_stop');
+      socket.disconnect();
+      socket = null;
+    }
+
+    // Reset UI
+    clientCameraStartBtn.disabled = false;
+    clientCameraStopBtn.disabled = true;
+    setStatus(clientCameraStatus, 'Not started', 'warn');
+    
+    if (clientCameraFps) clientCameraFps.textContent = '—';
+    if (clientCameraInf) clientCameraInf.textContent = '—';
+    if (clientCameraDetections) clientCameraDetections.textContent = '—';
+
+    // Clear canvas
+    const ctx = clientCameraCanvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, clientCameraCanvas.width, clientCameraCanvas.height);
+  }
+})();

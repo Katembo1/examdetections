@@ -24,6 +24,30 @@ def is_hardware_camera(ref: str) -> bool:
     return str(ref).strip().isdigit()
 
 
+def _frame_has_visual_content(frame: np.ndarray | None) -> bool:
+    """Return True when a frame appears valid and not an all-black capture."""
+    if frame is None or frame.size == 0:
+        return False
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    mean_val = float(np.mean(gray))
+    std_val = float(np.std(gray))
+
+    # Reject frames that are almost entirely black and have no texture.
+    return mean_val > 4.0 or std_val > 2.0
+
+
+def _configure_capture(cap: cv2.VideoCapture) -> None:
+    """Apply camera properties that improve compatibility on common webcams."""
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
+    # Prefer MJPG when available; it avoids black frames on some USB cameras.
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+
+
 def try_open_camera_with_backends(camera_index: int) -> cv2.VideoCapture | None:
     """Try to open a hardware camera with multiple backends."""
     # Try different backends that work with USB/built-in cameras
@@ -38,12 +62,17 @@ def try_open_camera_with_backends(camera_index: int) -> cv2.VideoCapture | None:
     for backend in backends:
         try:
             cap = cv2.VideoCapture(camera_index, backend)
+            _configure_capture(cap)
             if cap.isOpened():
-                # Test if we can actually read from it
-                ok, frame = cap.read()
-                if ok and frame is not None:
-                    # Reset to beginning
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                # Warm up and verify frame quality. Some backends return black frames while reporting success.
+                valid_reads = 0
+                for _ in range(8):
+                    ok, frame = cap.read()
+                    if ok and _frame_has_visual_content(frame):
+                        valid_reads += 1
+                    time.sleep(0.03)
+
+                if valid_reads >= 2:
                     return cap
                 cap.release()
         except Exception:

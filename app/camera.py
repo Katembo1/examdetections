@@ -235,14 +235,12 @@ def generate_frames(camera_id: str) -> Any:
             frame_bytes = stats.get("last_frame")
             running = stats.get("running", False)
         if not frame_bytes:
-            if not running:
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + get_placeholder_frame() + b"\r\n"
-                )
-                time.sleep(1.0)
-            else:
-                time.sleep(0.05)
+            # Keep the MJPEG stream alive with a placeholder until the first real frame arrives.
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + get_placeholder_frame() + b"\r\n"
+            )
+            time.sleep(0.2 if running else 1.0)
             continue
         yield (
             b"--frame\r\n"

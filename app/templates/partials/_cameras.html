@@ -53,6 +53,18 @@
           <span id="discoverStatus" class="status warn">Idle</span>
         </div>
         <div id="discoverResults" class="counts-box" style="min-height:56px; font-size:12px;">No discovery run yet. Click Scan to find ONVIF cameras.</div>
+        <!-- Manual URL fallback — shown when discovery returns nothing or errors -->
+        <div id="discoverManual" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
+          <div class="label" style="margin-bottom:6px;">Enter stream URL manually</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="discoverManualUrl" class="field" placeholder="rtsp://user:pass@192.168.x.x:554/stream1  or  http://…" style="flex:1;" />
+            <button id="discoverManualUse" class="btn btn-green btn-sm" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Use
+            </button>
+          </div>
+          <p style="color:var(--muted-2); font-size:11px; margin:6px 0 0;">Fills the <strong style="color:var(--muted);">Add Camera</strong> form above with this URL.</p>
+        </div>
       </div>
 
     </div>

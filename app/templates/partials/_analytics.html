@@ -42,6 +42,28 @@
 
   </div>
 
+  <div class="analytics-toolbar">
+    <div class="analytics-toolbar-left">
+      <span class="status ok" id="analyticsLiveStatus">Live polling every 0.5s</span>
+      <span class="analytics-meta" id="analyticsLastUpdated">Last update: --</span>
+    </div>
+    <div class="analytics-toolbar-right">
+      <button id="analyticsExportCsv" class="btn btn-ghost btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+      <button id="analyticsExportJson" class="btn btn-ghost btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Export JSON
+      </button>
+      <div class="divider" style="width:1px; height:18px; margin:0 2px;"></div>
+      <button id="analyticsResetTrends" class="btn btn-ghost btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/><path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/></svg>
+        Reset
+      </button>
+    </div>
+  </div>
+
   <!-- Data cards -->
   <div class="cols-2" style="gap:20px; align-items:start;">
 
@@ -66,6 +88,94 @@
 Inference: 0 ms</div>
     </div>
 
+  </div>
+
+  <div class="cols-2" style="gap:20px; align-items:start; margin-top:20px;">
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Object Mix (per minute)</div>
+          <div class="card-subtitle">Combined live + uploads detection rate by label</div>
+        </div>
+      </div>
+      <div id="analyticsObjectMix" class="analytics-list">No detection labels yet.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Camera Health Leaderboard</div>
+          <div class="card-subtitle">Top cameras by stream quality and latency</div>
+        </div>
+      </div>
+      <div id="analyticsCameraHealth" class="analytics-list">No camera data yet.</div>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Performance Trend</div>
+        <div class="card-subtitle">Recent rolling samples for FPS and inference latency</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; gap:4px;">
+          <button id="trendWindow30" class="btn btn-blue btn-sm" type="button">30s</button>
+          <button id="trendWindow60" class="btn btn-ghost btn-sm" type="button">60s</button>
+          <button id="trendWindow120" class="btn btn-ghost btn-sm" type="button">120s</button>
+        </div>
+        <div class="analytics-trend-legend">
+          <span><i class="dot fps"></i> FPS</span>
+          <span><i class="dot inf"></i> Inference ms</span>
+        </div>
+      </div>
+    </div>
+    <svg id="analyticsTrendChart" class="analytics-trend-chart" viewBox="0 0 100 34" preserveAspectRatio="none" aria-label="Performance trend chart"></svg>
+    <div class="analytics-trend-meta" id="analyticsTrendMeta">Collecting trend points...</div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Operational Alerts</div>
+        <div class="card-subtitle">Warnings from camera status and performance thresholds</div>
+      </div>
+      <span id="analyticsAlertBadge" class="badge badge-blue">0</span>
+    </div>
+    <div id="analyticsAlerts" class="analytics-alerts">No alerts. System looks healthy.</div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Alert Thresholds</div>
+        <div class="card-subtitle">Customize when operational alerts fire</div>
+      </div>
+    </div>
+    <div class="cols-2" style="gap:20px;">
+      <div class="formrow" style="margin-bottom:0;">
+        <label class="label">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          FPS floor — alert below this
+        </label>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+          <input type="range" id="alertFpsFloorSlider" class="field" min="1" max="30" step="1" value="5" />
+          <span id="alertFpsFloorVal" class="analytics-meta" style="min-width:28px; text-align:right;">5</span>
+        </div>
+      </div>
+      <div class="formrow" style="margin-bottom:0;">
+        <label class="label">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Inference ceiling — alert above this
+        </label>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+          <input type="range" id="alertInfCeilSlider" class="field" min="10" max="500" step="10" value="120" />
+          <span id="alertInfCeilVal" class="analytics-meta" style="min-width:46px; text-align:right;">120ms</span>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>

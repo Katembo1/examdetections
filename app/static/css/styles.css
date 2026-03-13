@@ -586,6 +586,166 @@ body {
 }
 
 /* ════════════════════════════════════════
+   ANALYTICS ENHANCEMENTS
+════════════════════════════════════════ */
+.analytics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.015);
+}
+
+.analytics-toolbar-left,
+.analytics-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analytics-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.analytics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.analytics-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.analytics-row .label {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  min-width: 88px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.analytics-bar-wrap {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  overflow: hidden;
+}
+
+.analytics-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent) 0%, #6ce07d 100%);
+}
+
+.analytics-value {
+  width: 70px;
+  text-align: right;
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+}
+
+.analytics-health-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: rgba(255,255,255,.015);
+}
+
+.analytics-health-name {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analytics-health-metric {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.analytics-trend-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.analytics-trend-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.analytics-trend-legend .dot.fps { background: var(--accent); }
+.analytics-trend-legend .dot.inf { background: var(--blue); }
+
+.analytics-trend-chart {
+  width: 100%;
+  height: 190px;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(255,255,255,.015) 0%, rgba(255,255,255,.006) 100%);
+}
+
+.analytics-trend-meta {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.analytics-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analytics-alert {
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.012);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.analytics-alert.warn {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+}
+
+.analytics-alert.bad {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+/* ════════════════════════════════════════
    DIVIDER & BADGE
 ════════════════════════════════════════ */
 .divider { height: 1px; background: var(--border); margin: 18px 0; }
@@ -837,6 +997,7 @@ body {
   .feed-grid { grid-template-columns: 1fr; }
   .cols-2    { grid-template-columns: 1fr; }
   .topbar    { padding: 0 16px; gap: 12px; }
+  .analytics-health-row { grid-template-columns: 1fr; gap: 4px; }
 }
 
 @media (max-width: 640px) {
@@ -854,6 +1015,8 @@ body {
   .feed-toolbar-right { margin-left: 0; width: 100%; }
   .conf-row   { flex-wrap: nowrap; }
   .conf-row input[type="range"] { width: 80px; }
+  .analytics-toolbar { align-items: flex-start; flex-direction: column; }
+  .analytics-trend-chart { height: 160px; }
 }
 
 @media (min-width: 641px) {

@@ -10,6 +10,21 @@ const analyticsFps       = document.getElementById('analyticsFps');
 const analyticsInference = document.getElementById('analyticsInference');
 const analyticsObjects   = document.getElementById('analyticsObjects');
 const analyticsConfidence= document.getElementById('analyticsConfidence');
+const analyticsLiveStatus= document.getElementById('analyticsLiveStatus');
+const analyticsLastUpdated = document.getElementById('analyticsLastUpdated');
+const analyticsResetTrends = document.getElementById('analyticsResetTrends');
+const analyticsObjectMix = document.getElementById('analyticsObjectMix');
+const analyticsCameraHealth = document.getElementById('analyticsCameraHealth');
+const analyticsTrendChart = document.getElementById('analyticsTrendChart');
+const analyticsTrendMeta = document.getElementById('analyticsTrendMeta');
+const analyticsAlerts = document.getElementById('analyticsAlerts');
+const analyticsAlertBadge = document.getElementById('analyticsAlertBadge');
+const analyticsExportJson  = document.getElementById('analyticsExportJson');
+const analyticsExportCsv   = document.getElementById('analyticsExportCsv');
+const alertFpsFloorSlider  = document.getElementById('alertFpsFloorSlider');
+const alertFpsFloorVal     = document.getElementById('alertFpsFloorVal');
+const alertInfCeilSlider   = document.getElementById('alertInfCeilSlider');
+const alertInfCeilVal      = document.getElementById('alertInfCeilVal');
 const activeCamera       = document.getElementById('activeCamera');
 const feedGrid           = document.getElementById('feedGrid');
 const inferenceToggle    = document.getElementById('inferenceToggle');
@@ -30,6 +45,9 @@ const removeCamera       = document.getElementById('removeCamera'); // may be nu
 const discoverCameras    = document.getElementById('discoverCameras');
 const discoverStatus     = document.getElementById('discoverStatus');
 const discoverResults    = document.getElementById('discoverResults');
+const discoverManual     = document.getElementById('discoverManual');
+const discoverManualUrl  = document.getElementById('discoverManualUrl');
+const discoverManualUse  = document.getElementById('discoverManualUse');
 const uploadInput        = document.getElementById('uploadInput');
 const uploadBtn          = document.getElementById('uploadBtn');
 const uploadStatus       = document.getElementById('uploadStatus');
@@ -78,6 +96,13 @@ let cameras          = [];
 let activeRef        = (activeCamera && activeCamera.value) || '';
 let maxCameras       = 5;
 let inferenceEnabled = false;
+const STATS_POLL_MS = 500;
+const ANALYTICS_HISTORY_MAX = 240;
+const analyticsHistory = [];
+let trendWindowMs      = 30 * 1000;
+let alertFpsFloor      = 5;
+let alertInfCeil       = 120;
+let _lastStatsSnapshot = null;
 
 /* Seed conf display from slider's initial value */
 if (conf && confText) confText.textContent = Number(conf.value).toFixed(2);
@@ -102,7 +127,8 @@ function escapeHtml(value) {
 function renderDiscoveredCameras(devices) {
   if (!discoverResults) return;
   if (!Array.isArray(devices) || devices.length === 0) {
-    discoverResults.textContent = 'No ONVIF cameras discovered.';
+    discoverResults.textContent = 'No ONVIF cameras discovered. Enter a URL below to add one manually.';
+    if (discoverManual) discoverManual.style.display = 'block';
     return;
   }
 
@@ -374,6 +400,7 @@ discoverCameras && discoverCameras.addEventListener('click', async () => {
   setStatus(discoverStatus, 'Scanning...', 'warn');
   if (discoverResults) discoverResults.textContent = 'Searching local network for ONVIF cameras...';
   discoverCameras.disabled = true;
+  if (discoverManual) discoverManual.style.display = 'none';
   try {
     const res = await fetch('/cameras/discover', {
       method: 'POST',
@@ -388,11 +415,24 @@ discoverCameras && discoverCameras.addEventListener('click', async () => {
     renderDiscoveredCameras(data.devices || []);
     setStatus(discoverStatus, 'Found ' + Number(data.count || 0) + ' camera(s)', (data.count || 0) > 0 ? 'ok' : 'warn');
   } catch (err) {
-    if (discoverResults) discoverResults.textContent = 'Discovery failed. Ensure your cameras are ONVIF-enabled and on the same network.';
+    if (discoverResults) discoverResults.textContent = 'ONVIF discovery failed. Enter a URL below to add a camera manually.';
+    if (discoverManual) discoverManual.style.display = 'block';
     setStatus(discoverStatus, err.message || 'Discovery failed', 'bad');
   } finally {
     discoverCameras.disabled = false;
   }
+});
+
+/* Manual URL Use button */
+discoverManualUse && discoverManualUse.addEventListener('click', () => {
+  const url = discoverManualUrl ? discoverManualUrl.value.trim() : '';
+  if (!url) return;
+  if (cameraRef) cameraRef.value = url;
+  if (cameraLabel && !cameraLabel.value.trim()) {
+    const match = url.match(/@([\d.]+)/);
+    cameraLabel.value = match ? 'Camera @ ' + match[1] : 'Manual Camera';
+  }
+  setStatus(addCameraStatus, 'Filled from manual URL — review and click Add Camera', 'ok');
 });
 
 discoverResults && discoverResults.addEventListener('click', (e) => {
@@ -552,6 +592,182 @@ function parseTotal(text) {
     .reduce((s, v) => s + v, 0);
 }
 
+function formatTime(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return hh + ':' + mm + ':' + ss;
+}
+
+function renderObjectMix(combined) {
+  if (!analyticsObjectMix) return;
+  const entries = Object.entries(combined || {})
+    .map(([label, value]) => [String(label), Number(value || 0)])
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    analyticsObjectMix.textContent = 'No detection labels yet.';
+    return;
+  }
+
+  const maxValue = Math.max(...entries.map(([, value]) => value), 1);
+  analyticsObjectMix.innerHTML = entries.slice(0, 8).map(([label, value]) => {
+    const width = Math.max((value / maxValue) * 100, 3);
+    return '<div class="analytics-row">' +
+      '<span class="label">' + escapeHtml(label) + '</span>' +
+      '<div class="analytics-bar-wrap"><div class="analytics-bar" style="width:' + width.toFixed(1) + '%"></div></div>' +
+      '<span class="analytics-value">' + value.toFixed(2) + '/m</span>' +
+    '</div>';
+  }).join('');
+}
+
+function renderCameraHealth(cams) {
+  if (!analyticsCameraHealth) return;
+  if (!Array.isArray(cams) || cams.length === 0) {
+    analyticsCameraHealth.textContent = 'No camera data yet.';
+    return;
+  }
+
+  const ranked = cams
+    .slice()
+    .sort((a, b) => {
+      const aRun = a.running ? 1 : 0;
+      const bRun = b.running ? 1 : 0;
+      if (aRun !== bRun) return bRun - aRun;
+      const fpsDiff = Number(b.fps || 0) - Number(a.fps || 0);
+      if (Math.abs(fpsDiff) > 0.001) return fpsDiff;
+      return Number(a.inference_ms || 0) - Number(b.inference_ms || 0);
+    });
+
+  analyticsCameraHealth.innerHTML = ranked.slice(0, 6).map((cam) => {
+    const running = cam.running === true;
+    const statusText = running ? 'Running' : 'Stopped';
+    const statusClass = running ? 'ok' : (cam.error ? 'bad' : 'warn');
+    return '<div class="analytics-health-row">' +
+      '<div class="analytics-health-name">' + escapeHtml(cam.label || cam.id || 'Unknown camera') + '</div>' +
+      '<div class="analytics-health-metric">FPS ' + Number(cam.fps || 0).toFixed(1) + ' · INF ' + Number(cam.inference_ms || 0).toFixed(1) + 'ms</div>' +
+      '<span class="status ' + statusClass + '">' + statusText + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function renderTrendChart() {
+  if (!analyticsTrendChart || !analyticsTrendMeta) return;
+
+  const cutoffTs = Date.now() - trendWindowMs;
+  const slice = analyticsHistory.filter((p) => p.ts >= cutoffTs);
+
+  if (slice.length < 2) {
+    analyticsTrendChart.innerHTML = '';
+    analyticsTrendMeta.textContent = 'Collecting trend points...';
+    return;
+  }
+
+  const fpsValues = slice.map((p) => Number(p.fps || 0));
+  const infValues = slice.map((p) => Number(p.inf || 0));
+  const maxFps = Math.max(...fpsValues, 1);
+  const maxInf = Math.max(...infValues, 1);
+
+  const fpsPoints = slice.map((p, i) => {
+    const x = slice.length === 1 ? 0 : (i / (slice.length - 1)) * 100;
+    const y = 30 - (Math.min(Number(p.fps || 0), maxFps) / maxFps) * 24;
+    return x.toFixed(2) + ',' + y.toFixed(2);
+  }).join(' ');
+
+  const infPoints = slice.map((p, i) => {
+    const x = slice.length === 1 ? 0 : (i / (slice.length - 1)) * 100;
+    const y = 30 - (Math.min(Number(p.inf || 0), maxInf) / maxInf) * 24;
+    return x.toFixed(2) + ',' + y.toFixed(2);
+  }).join(' ');
+
+  analyticsTrendChart.innerHTML =
+    '<line x1="0" y1="30" x2="100" y2="30" stroke="rgba(255,255,255,.12)" stroke-width="0.4" />' +
+    '<line x1="0" y1="18" x2="100" y2="18" stroke="rgba(255,255,255,.08)" stroke-width="0.3" />' +
+    '<line x1="0" y1="6" x2="100" y2="6" stroke="rgba(255,255,255,.06)" stroke-width="0.3" />' +
+    '<polyline points="' + fpsPoints + '" fill="none" stroke="var(--accent)" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />' +
+    '<polyline points="' + infPoints + '" fill="none" stroke="var(--blue)" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />';
+
+  const fpsMin = Math.min(...fpsValues);
+  const fpsMax = Math.max(...fpsValues);
+  const infMin = Math.min(...infValues);
+  const infMax = Math.max(...infValues);
+  const current = slice[slice.length - 1];
+  const windowLabel = (trendWindowMs / 1000) + 's window';
+  analyticsTrendMeta.textContent =
+    'Now ' + formatTime(current.ts) +
+    ' · ' + windowLabel + ' · ' + slice.length + ' samples' +
+    ' · FPS ' + Number(current.fps || 0).toFixed(2) +
+    ' (min ' + fpsMin.toFixed(2) + ', max ' + fpsMax.toFixed(2) + ')' +
+    ' · INF ' + Number(current.inf || 0).toFixed(2) + 'ms' +
+    ' (min ' + infMin.toFixed(2) + ', max ' + infMax.toFixed(2) + ')';
+}
+
+function renderAlerts(cams, totals, analytics) {
+  if (!analyticsAlerts || !analyticsAlertBadge) return;
+  const alerts = [];
+
+  const stopped = (cams || []).filter((cam) => cam.running !== true).length;
+  const errored = (cams || []).filter((cam) => !!cam.error);
+  if (stopped > 0) {
+    alerts.push({ cls: 'warn', text: stopped + ' camera(s) currently stopped.' });
+  }
+  if (errored.length > 0) {
+    alerts.push({ cls: 'bad', text: errored.length + ' camera(s) reported errors.' });
+  }
+
+  const fps = Number(totals.fps || 0);
+  const inf = Number(totals.inference_ms || 0);
+  if (fps > 0 && fps < alertFpsFloor) {
+    alerts.push({ cls: 'warn', text: 'Average FPS is low (' + fps.toFixed(2) + ' fps, floor: ' + alertFpsFloor + ').' });
+  }
+  if (inf > alertInfCeil) {
+    alerts.push({ cls: 'warn', text: 'Inference latency is high (' + inf.toFixed(1) + ' ms, ceiling: ' + alertInfCeil + ' ms).' });
+  }
+
+  const combined = analytics.combined_per_minute || {};
+  const totalObjectsPerMin = Object.values(combined).reduce((s, v) => s + Number(v || 0), 0);
+  if (totalObjectsPerMin === 0) {
+    alerts.push({ cls: 'warn', text: 'No detections per minute currently observed.' });
+  }
+
+  if (alerts.length === 0) {
+    analyticsAlerts.textContent = 'No alerts. System looks healthy.';
+    analyticsAlertBadge.textContent = '0';
+    analyticsAlertBadge.className = 'badge badge-blue';
+    return;
+  }
+
+  analyticsAlerts.innerHTML = alerts.slice(0, 6)
+    .map((item) => '<div class="analytics-alert ' + item.cls + '">' + escapeHtml(item.text) + '</div>')
+    .join('');
+
+  analyticsAlertBadge.textContent = String(alerts.length);
+  analyticsAlertBadge.className = alerts.some((a) => a.cls === 'bad') ? 'badge badge-red' : 'badge badge-amber';
+}
+
+function updateEnhancedAnalytics(data, totals, analytics) {
+  const now = Date.now();
+  analyticsHistory.push({
+    ts: now,
+    fps: Number(totals.fps || 0),
+    inf: Number(totals.inference_ms || 0),
+  });
+  if (analyticsHistory.length > ANALYTICS_HISTORY_MAX) {
+    analyticsHistory.splice(0, analyticsHistory.length - ANALYTICS_HISTORY_MAX);
+  }
+
+  if (analyticsLastUpdated) analyticsLastUpdated.textContent = 'Last update: ' + formatTime(now);
+  if (analyticsLiveStatus) setStatus(analyticsLiveStatus, 'Live polling every ' + (STATS_POLL_MS / 1000).toFixed(1) + 's', 'ok');
+  _lastStatsSnapshot = { data, totals, analytics, ts: now };
+
+  renderObjectMix(analytics.combined_per_minute || {});
+  renderCameraHealth(data.cameras || []);
+  renderTrendChart();
+  renderAlerts(data.cameras || [], totals, analytics);
+}
+
 async function refreshStats() {
   try {
     const res    = await fetch('/stats');
@@ -615,13 +831,94 @@ async function refreshStats() {
         }
       }
     });
+    updateEnhancedAnalytics(data, totals, analytics);
   } catch { /* silent */ }
 }
+
+analyticsResetTrends && analyticsResetTrends.addEventListener('click', () => {
+  analyticsHistory.length = 0;
+  if (analyticsTrendChart) analyticsTrendChart.innerHTML = '';
+  if (analyticsTrendMeta) analyticsTrendMeta.textContent = 'Trend history cleared. Collecting new samples...';
+});
+
+/* ── Export analytics ── */
+function _downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportAnalyticsJson() {
+  const snap = _lastStatsSnapshot;
+  const payload = {
+    exported_at: snap ? new Date(snap.ts).toISOString() : new Date().toISOString(),
+    totals: snap ? snap.totals : {},
+    analytics: snap ? snap.analytics : {},
+    cameras: snap ? (snap.data.cameras || []).map((c) => ({
+      id: c.id, label: c.label, fps: c.fps,
+      inference_ms: c.inference_ms, running: c.running, error: c.error || null,
+    })) : [],
+    trend_history: analyticsHistory.map((p) => ({
+      time: formatTime(p.ts), fps: p.fps, inference_ms: p.inf,
+    })),
+    alert_thresholds: { fps_floor: alertFpsFloor, inference_ceiling_ms: alertInfCeil },
+  };
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  _downloadBlob(JSON.stringify(payload, null, 2), 'examguard-analytics-' + ts + '.json', 'application/json');
+}
+
+function exportAnalyticsCsv() {
+  const rows = [['time', 'fps', 'inference_ms']];
+  analyticsHistory.forEach((p) => rows.push([formatTime(p.ts), p.fps.toFixed(3), p.inf.toFixed(3)]));
+  const csv = rows.map((r) => r.join(',')).join('\r\n');
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  _downloadBlob(csv, 'examguard-trend-' + ts + '.csv', 'text/csv');
+}
+
+analyticsExportJson && analyticsExportJson.addEventListener('click', exportAnalyticsJson);
+analyticsExportCsv  && analyticsExportCsv.addEventListener('click', exportAnalyticsCsv);
+
+/* ── Trend window selector ── */
+const _trendWindowDefs = [
+  { id: 'trendWindow30',  ms: 30000 },
+  { id: 'trendWindow60',  ms: 60000 },
+  { id: 'trendWindow120', ms: 120000 },
+];
+_trendWindowDefs.forEach(({ id, ms }) => {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    trendWindowMs = ms;
+    _trendWindowDefs.forEach(({ id: bid }) => {
+      const b = document.getElementById(bid);
+      if (!b) return;
+      b.classList.remove('btn-blue', 'btn-ghost');
+      b.classList.add(bid === id ? 'btn-blue' : 'btn-ghost');
+    });
+    renderTrendChart();
+  });
+});
+
+/* ── Alert threshold sliders ── */
+alertFpsFloorSlider && alertFpsFloorSlider.addEventListener('input', () => {
+  alertFpsFloor = Number(alertFpsFloorSlider.value);
+  if (alertFpsFloorVal) alertFpsFloorVal.textContent = alertFpsFloor;
+});
+alertInfCeilSlider && alertInfCeilSlider.addEventListener('input', () => {
+  alertInfCeil = Number(alertInfCeilSlider.value);
+  if (alertInfCeilVal) alertInfCeilVal.textContent = alertInfCeil + 'ms';
+});
 
 /* ── Boot ── */
 loadCameras();
 renderInferenceState();
-setInterval(refreshStats, 500);
+setInterval(refreshStats, STATS_POLL_MS);
 refreshStats();
 
 /* ══════════════════════════════════════════

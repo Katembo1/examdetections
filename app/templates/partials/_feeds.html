@@ -1,33 +1,108 @@
 <!-- ══════════════ LIVE FEEDS ══════════════ -->
 <div id="tab-feeds" class="panel active">
 
+  <!-- Toolbar -->
   <div class="inference-bar">
-    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-      <select id="cameraSelect" class="select" style="min-width:180px; width:auto;"></select>
+    <div class="feed-toolbar-left">
+      <select id="cameraSelect" class="select" style="min-width:190px; width:auto;"></select>
       <span id="cameraCountBadge" class="badge badge-amber">0 / 5</span>
-      <button id="startCamera" class="btn btn-green" type="button">Start</button>
-      <button id="stopCamera"  class="btn btn-red"   type="button">Stop</button>
-      <button id="wsViewBtn"   class="btn btn-amber"  type="button">&#128247; WebSocket View</button>
-      <button id="clientCameraBtn" class="btn btn-blue" type="button" style="background:#1f6feb;">&#128250; My Device Camera</button>
-      <span id="cameraStatus"       class="status warn" style="margin-left:4px;">–</span>
-      <span id="availabilityStatus" class="status warn">–</span>
+
+      <button id="startCamera" class="btn btn-green btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start
+      </button>
+      <button id="stopCamera" class="btn btn-red btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        Stop
+      </button>
+
+      <div class="topbar-divider" style="height:20px;"></div>
+
+      <button id="wsViewBtn" class="btn btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+        WS View
+      </button>
+      <button id="clientCameraBtn" class="btn btn-blue btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        My Camera
+      </button>
+
+      <span id="cameraStatus" class="status warn">–</span>
+      <span id="availabilityStatus" class="status warn" style="display:none;">–</span>
     </div>
-    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto;">
+
+    <div class="feed-toolbar-right">
       <div class="conf-row">
         <span class="conf-label">Confidence</span>
         <input id="conf" type="range" min="0" max="1" step="0.01" value="{{ confidence }}" />
         <span id="confText" class="conf-value">{{ confidence }}</span>
       </div>
-      <button id="inferenceToggle" class="btn btn-green" type="button">Start Inference</button>
+      <button id="inferenceToggle" class="btn btn-green btn-sm" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/></svg>
+        Start Inference
+      </button>
     </div>
   </div>
 
-  <div id="feedGrid" class="feed-grid">
-    <div class="counts-box" style="grid-column:1/-1">
-      No cameras added yet. Go to the <strong>Cameras</strong> tab to register one.
+  <!-- Feed grid -->
+  <div id="feedGrid" class="feed-grid"></div>
+
+</div>
+
+<!-- ══════════════ WS VIEWER MODAL ══════════════ -->
+<div id="wsModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+        WebSocket Live Feed
+      </span>
+      <button id="wsModalClose" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+      <label class="label" style="margin:0;">Camera</label>
+      <select id="wsCameraSelect" class="select" style="min-width:220px; width:auto; flex:1;"></select>
+      <button id="wsConnectBtn" class="btn btn-green btn-sm" type="button">Connect</button>
+      <button id="wsDisconnectBtn" class="btn btn-red btn-sm" type="button" disabled>Disconnect</button>
+      <span id="wsStatus" class="status warn">Disconnected</span>
+    </div>
+
+    <canvas id="wsCanvas" style="width:100%; border-radius:6px; background:#000; display:block; aspect-ratio:16/9;"></canvas>
+
+    <div style="display:flex; gap:20px; margin-top:10px; font-size:12px; color:var(--muted); font-family:'JetBrains Mono',monospace;">
+      <span>FPS <strong id="wsFps">—</strong></span>
+      <span>Inference <strong id="wsInf">—</strong> ms</span>
     </div>
   </div>
+</div>
 
+<!-- ══════════════ CLIENT DEVICE CAMERA MODAL ══════════════ -->
+<div id="clientCameraModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        My Device Camera
+      </span>
+      <button id="clientCameraModalClose" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+      <button id="clientCameraStartBtn" class="btn btn-green btn-sm" type="button">Start Camera</button>
+      <button id="clientCameraStopBtn" class="btn btn-red btn-sm" type="button" disabled>Stop Camera</button>
+      <span id="clientCameraStatus" class="status warn">Not started</span>
+    </div>
+
+    <video id="clientCameraVideo" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="clientCameraCanvas" style="width:100%; border-radius:6px; background:#000; display:block; aspect-ratio:16/9;"></canvas>
+
+    <div style="display:flex; gap:20px; margin-top:10px; font-size:12px; color:var(--muted); font-family:'JetBrains Mono',monospace; flex-wrap:wrap;">
+      <span>FPS <strong id="clientCameraFps">—</strong></span>
+      <span>Inference <strong id="clientCameraInf">—</strong> ms</span>
+      <span>Detections <strong id="clientCameraDetections">—</strong></span>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════ WEBSOCKET VIEWER MODAL ══════════════ -->

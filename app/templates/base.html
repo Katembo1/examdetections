@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}Cheating Detection{% endblock %}</title>
+  <title>{% block title %}ExamGuard — Detection Dashboard{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
   {% block extra_styles %}{% endblock %}
 </head>
@@ -16,41 +18,75 @@
   <aside class="drawer" id="drawer" role="navigation" aria-label="Main navigation">
     <div class="drawer-header">
       <div class="drawer-brand">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-        </svg>
-        Cheating Detection
+        <div class="brand-icon" style="width:22px;height:22px;border-radius:5px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        ExamGuard
       </div>
       <button class="drawer-close" id="drawerClose" aria-label="Close menu">&times;</button>
     </div>
-    {% for tab in [('feeds','Live Feeds'),('cameras','Cameras'),('analytics','Analytics'),('upload','Upload')] %}
-    <button class="drawer-tab{% if loop.first %} active{% endif %}" data-tab="{{ tab[0] }}">{{ tab[1] }}</button>
-    {% endfor %}
+    <!-- SVG icons identical to topbar tabs -->
+    <button class="drawer-tab active" data-tab="feeds">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/></svg>
+      Live Feeds
+    </button>
+    <button class="drawer-tab" data-tab="cameras">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Cameras
+    </button>
+    <button class="drawer-tab" data-tab="analytics">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Analytics
+    </button>
+    <button class="drawer-tab" data-tab="upload">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload
+    </button>
   </aside>
 
   <!-- ── Topbar ── -->
-  <nav class="topbar">
+  <nav class="topbar" role="navigation" aria-label="Top navigation">
     <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
+
     <div class="topbar-brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-      </svg>
-      Cheating Detection
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      ExamGuard
     </div>
-    <div class="topbar-nav">
-      {% for tab in [('feeds','Live Feeds'),('cameras','Cameras'),('analytics','Analytics'),('upload','Upload')] %}
-      <button class="nav-tab{% if loop.first %} active{% endif %}" data-tab="{{ tab[0] }}">{{ tab[1] }}</button>
-      {% endfor %}
+
+    <div class="topbar-divider"></div>
+
+    <div class="topbar-nav" role="tablist">
+      <button class="nav-tab active" data-tab="feeds" role="tab" aria-selected="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/></svg>
+        Live Feeds
+      </button>
+      <button class="nav-tab" data-tab="cameras" role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Cameras
+      </button>
+      <button class="nav-tab" data-tab="analytics" role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Analytics
+      </button>
+      <button class="nav-tab" data-tab="upload" role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </button>
     </div>
+
     <div class="topbar-right">
       <span id="inferenceStatus" class="status warn">Inference paused</span>
     </div>
   </nav>
 
   <!-- ── Page content ── -->
-  {% block content %}{% endblock %}
+  <main>
+    {% block content %}{% endblock %}
+  </main>
 
   <!-- ── Base JS: tab switching + drawer ── -->
   <script src="{{ url_for('static', filename='js/nav.js') }}"></script>

@@ -164,21 +164,23 @@ function renderCameras() {
   /* List in Cameras tab */
   if (!cameraList) return;
   if (cameras.length === 0) {
-    cameraList.innerHTML = '<div class="counts-box">No cameras registered.</div>';
+    cameraList.innerHTML = '<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><p>No cameras registered yet.</p></div>';
   } else {
     cameraList.innerHTML = cameras.map((c) => {
       const running = c.running === true;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
-        '<div style="flex:1;min-width:100px;">' +
+      return '<div class="camera-row">' +
+        '<div class="camera-row-info">' +
           '<strong>' + c.label + '</strong>' +
-          '<span style="color:var(--muted);font-size:11px;margin-left:6px;">ref: ' + c.ref + '</span>' +
+          '<div class="camera-row-ref">' + c.ref + '</div>' +
         '</div>' +
-        '<span id="listRunning-' + c.id + '" class="status ' + (running ? 'ok' : 'warn') + '" style="font-size:11px;">' +
+        '<span id="listRunning-' + c.id + '" class="status ' + (running ? 'ok' : 'warn') + '">' +
           (running ? 'Running' : 'Stopped') +
         '</span>' +
-        '<button class="btn btn-green" style="padding:2px 10px;font-size:12px;" data-action="start" data-id="' + c.id + '">Start</button>' +
-        '<button class="btn btn-red"   style="padding:2px 10px;font-size:12px;" data-action="stop"  data-id="' + c.id + '">Stop</button>' +
-        '<button class="btn btn-ghost" style="padding:2px 10px;font-size:12px;" data-action="delete" data-id="' + c.id + '">&#x1F5D1;</button>' +
+        '<div class="camera-row-actions">' +
+          '<button class="btn btn-green btn-sm" data-action="start" data-id="' + c.id + '">Start</button>' +
+          '<button class="btn btn-red btn-sm" data-action="stop" data-id="' + c.id + '">Stop</button>' +
+          '<button class="btn btn-ghost btn-sm" data-action="delete" data-id="' + c.id + '" title="Remove camera">&#x1F5D1;</button>' +
+        '</div>' +
       '</div>';
     }).join('');
   }
@@ -207,12 +209,14 @@ function renderFeedGrid() {
           (isRunning ? 'Running' : 'Stopped') +
         '</span>' +
       '</div>' +
-      '<img src="/video_feed/' + camera.id + '" alt="' + camera.label + '" />' +
-      '<div class="feed-card-footer">' +
-        '<span id="camFps-' + camera.id + '">FPS: 0</span>' +
-        '<span id="camInf-' + camera.id + '">INF: 0 ms</span>' +
+      '<div class="feed-card-body">' +
+        '<img src="/video_feed/' + camera.id + '" alt="' + camera.label + '" />' +
       '</div>' +
-      '<div id="camError-' + camera.id + '" class="feed-error" style="display: none; padding: 10px 14px; background: var(--danger-bg); border-top: 1px solid var(--danger-border); color: var(--danger); font-size: 11px; font-family: monospace;"></div>';
+      '<div class="feed-card-footer">' +
+        '<span id="camFps-' + camera.id + '">FPS: —</span>' +
+        '<span id="camInf-' + camera.id + '">INF: —</span>' +
+      '</div>' +
+      '<div id="camError-' + camera.id + '" class="feed-error" style="display:none;"></div>';
     feedGrid.appendChild(card);
   });
 }
@@ -668,12 +672,13 @@ refreshStats();
   /* Open modal */
   wsViewBtn.addEventListener('click', () => {
     syncWsCameraSelect();
-    wsModal.style.display = 'flex';
+    wsModal.classList.add('open');
   });
 
   /* Close modal */
   wsModalClose.addEventListener('click', disconnectWs);
-  wsModalClose.addEventListener('click', () => { wsModal.style.display = 'none'; });
+  wsModalClose.addEventListener('click', () => { wsModal.classList.remove('open'); });
+  wsModal.addEventListener('click', (e) => { if (e.target === wsModal) { disconnectWs(); wsModal.classList.remove('open'); } });
 
   /* Connect */
   wsConnectBtn.addEventListener('click', () => {
@@ -783,13 +788,21 @@ refreshStats();
 
   /* Open modal */
   clientCameraBtn.addEventListener('click', () => {
-    clientCameraModal.style.display = 'flex';
+    clientCameraModal.classList.add('open');
+  });
+
+  /* Backdrop click closes modal */
+  clientCameraModal.addEventListener('click', (e) => {
+    if (e.target === clientCameraModal) {
+      stopClientCamera();
+      clientCameraModal.classList.remove('open');
+    }
   });
 
   /* Close modal */
   clientCameraModalClose.addEventListener('click', () => {
     stopClientCamera();
-    clientCameraModal.style.display = 'none';
+    clientCameraModal.classList.remove('open');
   });
 
   /* Start camera */

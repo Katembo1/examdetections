@@ -1,39 +1,71 @@
 <!-- ══════════════ ANALYTICS ══════════════ -->
 <div id="tab-analytics" class="panel">
 
-  <div class="stat-grid" style="margin-bottom:20px;">
+  <!-- KPI tiles -->
+  <div class="stat-grid" style="margin-bottom:22px;">
+
     <div class="stat-tile">
-      <div class="label">Stream FPS</div>
+      <div class="tile-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Stream FPS
+      </div>
       <div class="value" id="analyticsFps">0</div>
       <div class="sublabel">avg across cameras</div>
     </div>
+
     <div class="stat-tile">
-      <div class="label">Inference</div>
+      <div class="tile-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Inference
+      </div>
       <div class="value" id="analyticsInference">0</div>
       <div class="sublabel">ms avg latency</div>
     </div>
+
     <div class="stat-tile">
-      <div class="label">Objects Detected</div>
+      <div class="tile-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Objects / min
+      </div>
       <div class="value" id="analyticsObjects">0</div>
-      <div class="sublabel">avg per minute</div>
+      <div class="sublabel">combined rate</div>
     </div>
+
     <div class="stat-tile">
-      <div class="label">Confidence</div>
+      <div class="tile-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Confidence
+      </div>
       <div class="value" id="analyticsConfidence">0.00</div>
-      <div class="sublabel">current threshold</div>
+      <div class="sublabel">detection threshold</div>
     </div>
+
   </div>
 
+  <!-- Data cards -->
   <div class="cols-2" style="gap:20px; align-items:start;">
+
     <div class="card">
-      <div class="card-header"><span class="card-title">Detected Objects</span></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Detected Objects</div>
+          <div class="card-subtitle">Combined live + upload totals</div>
+        </div>
+      </div>
       <div id="counts" class="counts-box">No objects detected.</div>
     </div>
+
     <div class="card">
-      <div class="card-header"><span class="card-title">Performance</span></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Performance</div>
+          <div class="card-subtitle">Real-time camera metrics</div>
+        </div>
+      </div>
       <div id="perf" class="counts-box">FPS: 0
 Inference: 0 ms</div>
     </div>
+
   </div>
 
 </div>

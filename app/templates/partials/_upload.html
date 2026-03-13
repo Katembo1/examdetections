@@ -1,27 +1,54 @@
 <!-- ══════════════ UPLOAD ══════════════ -->
 <div id="tab-upload" class="panel">
-  <div style="max-width:520px;">
+  <div class="cols-2" style="gap:20px; align-items:start;">
+
+    <!-- Upload form -->
     <div class="card">
-      <div class="card-header"><span class="card-title">Upload Recorded Session</span></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Upload Recorded Session</div>
+          <div class="card-subtitle">Run inference on a saved video file</div>
+        </div>
+      </div>
+
       <div class="formrow">
         <label class="label">Video File</label>
         <input id="uploadInput" class="field" type="file" accept="video/*" />
       </div>
-      <div style="display:flex; align-items:center; gap:14px;">
-        <button id="uploadBtn" class="btn btn-green" style="width:auto; min-width:130px;" type="button">Upload</button>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button id="uploadBtn" class="btn btn-green btn-sm" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload &amp; Analyse
+        </button>
         <span id="uploadStatus" class="status warn">No file selected</span>
       </div>
     </div>
 
-    <div class="card" style="margin-top:14px;">
-      <div class="card-header"><span class="card-title">Inference Result</span></div>
-      <span id="uploadInferenceStatus" class="status warn">No inference yet</span>
-      <div id="uploadInferenceSummary" class="counts-box" style="margin-top:10px; min-height:80px;">Upload a video to run inference.</div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button id="uploadReplayBtn" class="btn btn-ghost" type="button" disabled>Replay</button>
+    <!-- Inference result -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Inference Result</div>
+          <div class="card-subtitle">Annotated frames &amp; detection summary</div>
+        </div>
+        <span id="uploadInferenceStatus" class="status warn">No inference yet</span>
       </div>
-      <canvas id="uploadStreamCanvas" style="display:none; width:100%; margin-top:12px; border-radius:6px; border:1px solid var(--border); background:#000;"></canvas>
-      <img id="uploadInferencePreview" alt="Inference preview" style="display:none; width:100%; margin-top:12px; border-radius:6px; border:1px solid var(--border); background:#000;" />
+
+      <div id="uploadInferenceSummary" class="counts-box" style="min-height:80px;">Upload a video to run inference.</div>
+
+      <div style="margin-top:12px;">
+        <canvas id="uploadStreamCanvas" style="display:none; width:100%; border-radius:6px; border:1px solid var(--border); background:#000;"></canvas>
+        <img id="uploadInferencePreview" alt="Inference preview" style="display:none; width:100%; border-radius:6px; border:1px solid var(--border); background:#000;" />
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button id="uploadReplayBtn" class="btn btn-ghost btn-sm" type="button" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+          Replay
+        </button>
+      </div>
     </div>
+
   </div>
 </div>

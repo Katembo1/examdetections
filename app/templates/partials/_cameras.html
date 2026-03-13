@@ -1,47 +1,76 @@
 <!-- ══════════════ CAMERAS ══════════════ -->
 <div id="tab-cameras" class="panel">
 
-  <!-- Add camera form -->
-  <div class="card" style="margin-bottom:16px;">
-    <div class="card-header"><span class="card-title">Add Camera</span></div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; padding:4px 0;">
-      <div style="flex:1; min-width:140px;">
-        <label class="label">Label</label>
-        <input id="cameraLabel" class="field" placeholder="e.g. Front Row" />
-      </div>
-      <div style="flex:2; min-width:180px;">
-        <label class="label">Reference &nbsp;<span style="color:var(--muted);font-size:11px;">(0 · 1 · rtsp://… · /dev/video0)</span></label>
-        <input id="cameraRef" class="field" placeholder="0  or  rtsp://..." />
-      </div>
-      <div style="display:flex; gap:6px; padding-bottom:1px;">
-        <button id="testCamera" class="btn btn-amber" type="button">Test</button>
-        <button id="addCamera"  class="btn btn-green" type="button">Add</button>
-      </div>
-    </div>
-    <div style="margin-top:6px;">
-      <span id="addCameraStatus" class="status warn">–</span>
-    </div>
-  </div>
+  <div class="cols-2" style="gap:20px; align-items:start;">
 
-  <div class="card" style="margin-bottom:16px;">
-    <div class="card-header"><span class="card-title">Discover ONVIF Cameras</span></div>
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-      <button id="discoverCameras" class="btn btn-amber" type="button">Scan Local Network</button>
-      <span id="discoverStatus" class="status warn">Idle</span>
-    </div>
-    <div id="discoverResults" class="counts-box" style="min-height:64px;">No discovery run yet.</div>
-  </div>
+    <!-- Left column: add form + discovery -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
 
-  <!-- Camera list -->
-  <div class="card">
-    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-      <span class="card-title">Registered Cameras</span>
-      <span id="cameraCountBadge" class="badge badge-amber">0 / 5</span>
+      <!-- Add camera -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Add Camera</div>
+            <div class="card-subtitle">USB index, video file, RTSP / HTTP stream</div>
+          </div>
+        </div>
+        <div class="formrow">
+          <label class="label">Label</label>
+          <input id="cameraLabel" class="field" placeholder="e.g. Front Row Left" />
+        </div>
+        <div class="formrow">
+          <label class="label">Reference
+            <span style="color:var(--muted-2); text-transform:none; letter-spacing:0; font-weight:400;">— 0 / 1 / rtsp://… / http://…</span>
+          </label>
+          <input id="cameraRef" class="field" placeholder="0  or  rtsp://user:pass@192.168.1.50:554/stream1" />
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="testCamera" class="btn btn-amber btn-sm" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Test
+          </button>
+          <button id="addCamera" class="btn btn-green btn-sm" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Camera
+          </button>
+          <span id="addCameraStatus" class="status warn">–</span>
+        </div>
+      </div>
+
+      <!-- ONVIF Discovery -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Network Discovery</div>
+            <div class="card-subtitle">ONVIF WS-Discovery scan — finds cameras on the same subnet</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+          <button id="discoverCameras" class="btn btn-sm" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Scan Local Network
+          </button>
+          <span id="discoverStatus" class="status warn">Idle</span>
+        </div>
+        <div id="discoverResults" class="counts-box" style="min-height:56px; font-size:12px;">No discovery run yet. Click Scan to find ONVIF cameras.</div>
+      </div>
+
     </div>
 
-    <div id="cameraList" style="margin-top:4px;">
-      <div class="counts-box">No cameras registered.</div>
+    <!-- Right column: registered cameras -->
+    <div class="card" style="min-height:200px;">
+      <div class="card-header">
+        <div class="card-title">Registered Cameras</div>
+        <span id="cameraCountBadge" class="badge badge-amber">0 / 5</span>
+      </div>
+      <div id="cameraList">
+        <div class="empty-state">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <p>No cameras registered yet.<br>Use the form to add one.</p>
+        </div>
+      </div>
     </div>
+
   </div>
 
   <!-- Hidden fields still used by JS -->

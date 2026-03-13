@@ -15,6 +15,8 @@ from .utils import (
     format_counts,
     get_placeholder_frame,
     is_hardware_camera,
+    is_network_stream_reference,
+    open_video_source,
     parse_camera_reference,
     try_open_camera_with_backends,
 )
@@ -111,7 +113,7 @@ class CameraWorker(threading.Thread):
                 else:
                     # Video file or stream
                     print(f"[Camera {self.camera_id}] Attempting to open video source: {current_ref}")
-                    cap = cv2.VideoCapture(parsed_ref)
+                    cap = open_video_source(parsed_ref)
                 
                 if cap is None or not cap.isOpened():
                     failed_attempts += 1
@@ -160,11 +162,30 @@ class CameraWorker(threading.Thread):
 
             ok, frame = cap.read()
             if not ok:
-                # End of video file - loop it
+                # Loop local files, but reconnect live network streams.
+                if current_ref and is_network_stream_reference(current_ref):
+                    failed_attempts += 1
+                    error_msg = f"Stream read timed out for '{current_ref}'. Reconnecting..."
+                    print(f"[Camera {self.camera_id}] {error_msg} (attempt {failed_attempts}/{max_failed_attempts})")
+                    with state.lock:
+                        stats = state.camera_stats.get(self.camera_id)
+                        if stats is not None:
+                            stats["error"] = error_msg
+                    cap.release()
+                    cap = None
+                    time.sleep(min(1.5 * failed_attempts, 5.0))
+                    continue
+
                 if isinstance(parse_camera_reference(current_ref), str):
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 time.sleep(0.01)
                 continue
+
+            failed_attempts = 0
+            with state.lock:
+                stats = state.camera_stats.get(self.camera_id)
+                if stats is not None and stats.get("error"):
+                    stats["error"] = None
 
             now = time.perf_counter()
             delta = max(now - last_ts, 1e-6)

@@ -3,6 +3,7 @@ import socket
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -141,6 +142,12 @@ def is_hardware_camera(ref: str) -> bool:
     return str(ref).strip().isdigit()
 
 
+def is_network_stream_reference(ref: str) -> bool:
+    """Return True when the reference points to a live network stream URL."""
+    parsed = urlparse(str(ref).strip())
+    return parsed.scheme.lower() in {"rtsp", "rtsps", "http", "https", "tcp", "udp"}
+
+
 def _frame_has_visual_content(frame: np.ndarray | None) -> bool:
     """Return True when a frame appears valid and not an all-black capture."""
     if frame is None or frame.size == 0:
@@ -163,6 +170,31 @@ def _configure_capture(cap: cv2.VideoCapture) -> None:
 
     # Prefer MJPG when available; it avoids black frames on some USB cameras.
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+
+
+def _configure_stream_capture(cap: cv2.VideoCapture) -> None:
+    """Apply low-latency settings for network streams when supported by OpenCV."""
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    open_timeout = getattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC", None)
+    read_timeout = getattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC", None)
+    if open_timeout is not None:
+        cap.set(open_timeout, 5000)
+    if read_timeout is not None:
+        cap.set(read_timeout, 5000)
+
+
+def open_video_source(ref: int | str) -> cv2.VideoCapture:
+    """Open a file or network stream with source-specific capture settings."""
+    if isinstance(ref, str) and is_network_stream_reference(ref):
+        cap = cv2.VideoCapture(ref, cv2.CAP_FFMPEG)
+        _configure_stream_capture(cap)
+        return cap
+
+    cap = cv2.VideoCapture(ref)
+    if isinstance(ref, (str, Path)):
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    return cap
 
 
 def try_open_camera_with_backends(camera_index: int) -> cv2.VideoCapture | None:
@@ -255,7 +287,7 @@ def test_camera_reference(ref: str) -> bool:
         return bool(ok)
     else:
         # Video file or stream
-        cap = cv2.VideoCapture(parsed_ref)
+        cap = open_video_source(parsed_ref)
         if not cap.isOpened():
             cap.release()
             return False

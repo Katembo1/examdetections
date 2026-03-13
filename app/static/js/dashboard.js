@@ -27,6 +27,9 @@ const addCamera          = document.getElementById('addCamera');
 const startCamera        = document.getElementById('startCamera');
 const stopCamera         = document.getElementById('stopCamera');
 const removeCamera       = document.getElementById('removeCamera'); // may be null
+const discoverCameras    = document.getElementById('discoverCameras');
+const discoverStatus     = document.getElementById('discoverStatus');
+const discoverResults    = document.getElementById('discoverResults');
 const uploadInput        = document.getElementById('uploadInput');
 const uploadBtn          = document.getElementById('uploadBtn');
 const uploadStatus       = document.getElementById('uploadStatus');
@@ -85,6 +88,39 @@ function setStatus(el, text, cls) {
   el.textContent = text;
   el.classList.remove('ok', 'warn', 'bad');
   el.classList.add(cls);
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderDiscoveredCameras(devices) {
+  if (!discoverResults) return;
+  if (!Array.isArray(devices) || devices.length === 0) {
+    discoverResults.textContent = 'No ONVIF cameras discovered.';
+    return;
+  }
+
+  discoverResults.innerHTML = devices.map((dev, idx) => {
+    const label = escapeHtml(dev.label || ('ONVIF Camera ' + (idx + 1)));
+    const ip = escapeHtml(dev.ip || 'unknown');
+    const candidates = Array.isArray(dev.rtsp_candidates) ? dev.rtsp_candidates : [];
+    const defaultRef = candidates[0] || '';
+    const hint = candidates.length ? escapeHtml(candidates[0]) : 'No RTSP template provided';
+    return '<div class="discover-row">' +
+      '<div class="discover-main">' +
+        '<strong>' + label + '</strong>' +
+        '<span class="discover-meta">IP: ' + ip + '</span>' +
+        '<span class="discover-meta">RTSP: ' + hint + '</span>' +
+      '</div>' +
+      '<button class="btn btn-green discover-use" data-label="' + label + '" data-ref="' + escapeHtml(defaultRef) + '" type="button">Use</button>' +
+    '</div>';
+  }).join('');
 }
 
 /* ── Inference state ── */
@@ -328,6 +364,46 @@ removeCamera && removeCamera.addEventListener('click', async () => {
     renderFeedGrid();
     setStatus(addCameraStatus, 'Camera removed', 'ok');
   } catch { setStatus(addCameraStatus, 'Failed to remove camera', 'bad'); }
+});
+
+discoverCameras && discoverCameras.addEventListener('click', async () => {
+  setStatus(discoverStatus, 'Scanning...', 'warn');
+  if (discoverResults) discoverResults.textContent = 'Searching local network for ONVIF cameras...';
+  discoverCameras.disabled = true;
+  try {
+    const res = await fetch('/cameras/discover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeout_sec: 3.0, max_results: 32 }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Discovery failed');
+    }
+
+    renderDiscoveredCameras(data.devices || []);
+    setStatus(discoverStatus, 'Found ' + Number(data.count || 0) + ' camera(s)', (data.count || 0) > 0 ? 'ok' : 'warn');
+  } catch (err) {
+    if (discoverResults) discoverResults.textContent = 'Discovery failed. Ensure your cameras are ONVIF-enabled and on the same network.';
+    setStatus(discoverStatus, err.message || 'Discovery failed', 'bad');
+  } finally {
+    discoverCameras.disabled = false;
+  }
+});
+
+discoverResults && discoverResults.addEventListener('click', (e) => {
+  const btn = e.target.closest('.discover-use');
+  if (!btn) return;
+  const label = btn.dataset.label || '';
+  const ref = btn.dataset.ref || '';
+
+  if (cameraLabel && !cameraLabel.value.trim()) {
+    cameraLabel.value = label;
+  }
+  if (cameraRef) {
+    cameraRef.value = ref;
+  }
+  setStatus(addCameraStatus, 'Filled camera form from discovery result', 'ok');
 });
 
 /* ── Camera list event delegation (start / stop / delete per row) ── */

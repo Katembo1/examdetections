@@ -267,6 +267,31 @@ body {
   min-height: 100px;
 }
 
+.discover-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.discover-row:last-child {
+  border-bottom: 0;
+}
+
+.discover-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.discover-meta {
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-all;
+}
+
 .divider { height: 1px; background: var(--border); margin: 18px 0; }
 
 /* ── Badge ── */

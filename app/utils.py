@@ -1,6 +1,10 @@
 """Utility helper functions."""
+import socket
 import time
+import uuid
+import xml.etree.ElementTree as ET
 from typing import Any
+from urllib.parse import urlparse
 
 import cv2
 import numpy as np
@@ -9,6 +13,119 @@ from werkzeug.utils import secure_filename
 from .config import UPLOADS_ROOT
 from .db import db
 from .models import UploadRecord
+
+
+def _extract_scope_name(scopes: list[str]) -> str | None:
+    """Extract human-readable camera name from ONVIF scopes."""
+    for scope in scopes:
+        marker = "onvif://www.onvif.org/name/"
+        idx = scope.find(marker)
+        if idx >= 0:
+            name = scope[idx + len(marker):].replace("_", " ").strip()
+            if name:
+                return name
+    return None
+
+
+def _guess_rtsp_candidates(ip: str) -> list[str]:
+    """Build common RTSP URL templates for quick manual testing."""
+    return [
+        f"rtsp://username:password@{ip}:554/stream1",
+        f"rtsp://username:password@{ip}:554/cam/realmonitor?channel=1&subtype=0",
+        f"rtsp://username:password@{ip}:554/h264Preview_01_main",
+        f"rtsp://username:password@{ip}:554/live/ch00_00",
+    ]
+
+
+def discover_onvif_devices(timeout_sec: float = 2.5, max_results: int = 32) -> list[dict[str, Any]]:
+    """Discover ONVIF cameras on LAN using WS-Discovery multicast."""
+    timeout_sec = max(0.5, min(float(timeout_sec), 10.0))
+    max_results = max(1, min(int(max_results), 128))
+
+    message_id = f"uuid:{uuid.uuid4()}"
+    probe_xml = f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<e:Envelope xmlns:e=\"http://www.w3.org/2003/05/soap-envelope\"
+            xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\"
+            xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"
+            xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\">
+  <e:Header>
+    <w:MessageID>{message_id}</w:MessageID>
+    <w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To>
+    <w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action>
+  </e:Header>
+  <e:Body>
+    <d:Probe>
+      <d:Types>dn:NetworkVideoTransmitter</d:Types>
+    </d:Probe>
+  </e:Body>
+</e:Envelope>""".encode("utf-8")
+
+    discovered: dict[str, dict[str, Any]] = {}
+    sock: socket.socket | None = None
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.settimeout(timeout_sec)
+        sock.sendto(probe_xml, ("239.255.255.250", 3702))
+
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline and len(discovered) < max_results:
+            remaining = max(0.05, deadline - time.monotonic())
+            sock.settimeout(remaining)
+            try:
+                data, addr = sock.recvfrom(65535)
+            except socket.timeout:
+                break
+            except OSError:
+                break
+
+            sender_ip = str(addr[0])
+            try:
+                root = ET.fromstring(data)
+            except ET.ParseError:
+                continue
+
+            xaddrs: list[str] = []
+            scopes: list[str] = []
+
+            for elem in root.iter():
+                tag = elem.tag.lower()
+                text = (elem.text or "").strip()
+                if not text:
+                    continue
+                if tag.endswith("xaddrs"):
+                    xaddrs.extend(part for part in text.split() if part)
+                elif tag.endswith("scopes"):
+                    scopes.extend(part for part in text.split() if part)
+
+            host_ip = sender_ip
+            for xaddr in xaddrs:
+                parsed = urlparse(xaddr)
+                if parsed.hostname:
+                    host_ip = parsed.hostname
+                    break
+
+            name = _extract_scope_name(scopes) or f"ONVIF {host_ip}"
+            entry = discovered.get(host_ip, {
+                "ip": host_ip,
+                "label": name,
+                "xaddrs": [],
+                "scopes": [],
+            })
+
+            entry["label"] = entry.get("label") or name
+            entry["xaddrs"] = sorted(set([*entry.get("xaddrs", []), *xaddrs]))
+            entry["scopes"] = sorted(set([*entry.get("scopes", []), *scopes]))
+            entry["rtsp_candidates"] = _guess_rtsp_candidates(host_ip)
+            discovered[host_ip] = entry
+
+    finally:
+        if sock is not None:
+            sock.close()
+
+    return sorted(discovered.values(), key=lambda item: item.get("ip", ""))
 
 
 def parse_camera_reference(value: str) -> int | str:

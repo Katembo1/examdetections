@@ -30,7 +30,14 @@ from .config import MAX_CAMERAS, UPLOADS_ROOT, get_active_model_path
 from .inference import build_counts, draw_overlay, run_detection
 from .models import UploadAnalytics, UploadRecord
 from .state import state
-from .utils import enumerate_available_cameras, format_counts, format_counts_rate, save_upload, test_camera_reference
+from .utils import (
+    discover_onvif_devices,
+    enumerate_available_cameras,
+    format_counts,
+    format_counts_rate,
+    save_upload,
+    test_camera_reference,
+)
 
 main_bp = Blueprint("main", __name__)
 
@@ -243,6 +250,28 @@ def cameras_available() -> Any:
         "count": len(available),
         "message": "Hardware cameras detected" if available else "No hardware cameras found. Use video files or streams for cloud deployment."
     })
+
+
+@main_bp.route("/cameras/discover", methods=["POST"])
+def cameras_discover() -> Any:
+    """Discover ONVIF cameras reachable from this host's local network."""
+    payload = request.get_json(silent=True) or {}
+    timeout_sec = payload.get("timeout_sec", 2.5)
+    max_results = payload.get("max_results", 32)
+
+    try:
+        devices = discover_onvif_devices(timeout_sec=timeout_sec, max_results=max_results)
+    except Exception as exc:
+        current_app.logger.exception("ONVIF discovery failed: %s", exc)
+        return jsonify({"error": "Discovery failed"}), 500
+
+    return jsonify(
+        {
+            "count": len(devices),
+            "devices": devices,
+            "message": "ONVIF scan complete" if devices else "No ONVIF devices found on local network",
+        }
+    )
 
 
 @main_bp.route("/upload", methods=["POST"])

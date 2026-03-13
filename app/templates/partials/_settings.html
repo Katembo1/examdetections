@@ -1,0 +1,49 @@
+<!-- ══════════════ SETTINGS ══════════════ -->
+<div id="tab-settings" class="panel">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Settings</div>
+      <div class="section-subtitle">Personalize your dashboard experience</div>
+    </div>
+  </div>
+
+  <div class="cols-2" style="gap:20px; align-items:start;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Appearance</div>
+          <div class="card-subtitle">Choose how the dashboard looks</div>
+        </div>
+      </div>
+
+      <div class="formrow" style="margin-bottom:12px;">
+        <label class="label">Theme</label>
+        <div class="settings-theme-options" role="radiogroup" aria-label="Theme selection">
+          <button id="themeDarkBtn" class="btn btn-sm settings-theme-btn" data-theme="dark" type="button" role="radio" aria-checked="true">
+            Dark
+          </button>
+          <button id="themeLightBtn" class="btn btn-sm settings-theme-btn" data-theme="light" type="button" role="radio" aria-checked="false">
+            Light
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-theme-current">
+        Active theme: <strong id="themeCurrent">Dark</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Notes</div>
+          <div class="card-subtitle">Preference is saved in your browser</div>
+        </div>
+      </div>
+      <div class="counts-box" style="min-height:80px;">
+Your selected theme is remembered automatically for this browser.
+Use Dark for low-light rooms and Light for bright environments.
+      </div>
+    </div>
+  </div>
+</div>

@@ -45,6 +45,47 @@
 
   /* Transitions */
   --transition:     .18s cubic-bezier(.4,0,.2,1);
+
+  /* Background atmosphere */
+  --bg-grad-1:      rgba(63,185,80,.04);
+  --bg-grad-2:      rgba(88,166,255,.03);
+}
+
+html[data-theme="light"] {
+  --bg:             #f4f6f8;
+  --surface:        #ffffff;
+  --surface-2:      #f6f8fa;
+  --surface-3:      #edf2f7;
+  --border:         #d0d7de;
+  --border-2:       #bcc5d0;
+
+  --accent:         #1f883d;
+  --accent-2:       #196c2e;
+  --accent-bg:      rgba(31,136,61,.10);
+  --accent-border:  rgba(31,136,61,.28);
+  --accent-glow:    0 0 18px rgba(31,136,61,.15);
+
+  --warn:           #9a6700;
+  --warn-bg:        rgba(154,103,0,.10);
+  --warn-border:    rgba(154,103,0,.30);
+  --danger:         #cf222e;
+  --danger-bg:      rgba(207,34,46,.10);
+  --danger-border:  rgba(207,34,46,.28);
+  --blue:           #0969da;
+  --blue-bg:        rgba(9,105,218,.10);
+  --blue-border:    rgba(9,105,218,.28);
+
+  --ink:            #24292f;
+  --ink-2:          #3d444d;
+  --muted:          #57606a;
+  --muted-2:        #6e7781;
+
+  --shadow:         0 18px 44px rgba(0,0,0,.16);
+  --shadow-soft:    0 4px 16px rgba(0,0,0,.10);
+  --shadow-card:    0 1px 3px rgba(0,0,0,.06), 0 0 0 1px var(--border);
+
+  --bg-grad-1:      rgba(31,136,61,.09);
+  --bg-grad-2:      rgba(9,105,218,.07);
 }
 
 /* ════════════════════════════════════════
@@ -58,8 +99,8 @@ body {
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   background-image:
-    radial-gradient(ellipse 900px 600px at 0% 0%,   rgba(63,185,80,.04)  0%, transparent 60%),
-    radial-gradient(ellipse 800px 600px at 100% 20%, rgba(88,166,255,.03) 0%, transparent 55%);
+    radial-gradient(ellipse 900px 600px at 0% 0%,   var(--bg-grad-1)  0%, transparent 60%),
+    radial-gradient(ellipse 800px 600px at 100% 20%, var(--bg-grad-2) 0%, transparent 55%);
   color: var(--ink);
   min-height: 100vh;
   line-height: 1.6;
@@ -987,6 +1028,35 @@ body {
   flex: 1;
   height: 1px;
   background: var(--border);
+}
+
+/* ════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════ */
+.settings-theme-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-theme-btn {
+  min-width: 88px;
+}
+
+.settings-theme-btn.is-selected {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  box-shadow: var(--accent-glow);
+}
+
+.settings-theme-current {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.settings-theme-current strong {
+  color: var(--ink);
 }
 
 /* ════════════════════════════════════════

@@ -4,7 +4,8 @@ function switchTab(tabName) {
     t.classList.toggle('active', t.dataset.tab === tabName);
   });
   document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
-  document.getElementById('tab-' + tabName).classList.add('active');
+  const targetPanel = document.getElementById('tab-' + tabName);
+  if (targetPanel) targetPanel.classList.add('active');
 }
 
 document.querySelectorAll('.nav-tab').forEach((tab) => {
@@ -41,3 +42,59 @@ drawerOverlay.addEventListener('click', closeDrawer);
 document.querySelectorAll('.drawer-tab').forEach((tab) => {
   tab.addEventListener('click', () => { switchTab(tab.dataset.tab); closeDrawer(); });
 });
+
+const THEME_STORAGE_KEY = 'examguard-theme';
+
+function getStoredTheme() {
+  try {
+    const value = localStorage.getItem(THEME_STORAGE_KEY);
+    if (value === 'light' || value === 'dark') return value;
+  } catch (e) {
+    return 'dark';
+  }
+  return 'dark';
+}
+
+function setStoredTheme(theme) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (e) {
+    // Ignore storage failures in private-restricted contexts.
+  }
+}
+
+function applyTheme(theme) {
+  const normalized = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', normalized);
+  setStoredTheme(normalized);
+  syncThemeSettingsUi(normalized);
+}
+
+function syncThemeSettingsUi(theme) {
+  const current = document.getElementById('themeCurrent');
+  const lightBtn = document.getElementById('themeLightBtn');
+  const darkBtn = document.getElementById('themeDarkBtn');
+  if (current) current.textContent = theme === 'light' ? 'Light' : 'Dark';
+
+  [lightBtn, darkBtn].forEach((btn) => {
+    if (!btn) return;
+    const selected = btn.dataset.theme === theme;
+    btn.classList.toggle('is-selected', selected);
+    btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+  });
+}
+
+function initThemeSettings() {
+  const lightBtn = document.getElementById('themeLightBtn');
+  const darkBtn = document.getElementById('themeDarkBtn');
+  const themeButtons = [lightBtn, darkBtn].filter(Boolean);
+
+  const initialTheme = document.documentElement.getAttribute('data-theme') || getStoredTheme();
+  applyTheme(initialTheme);
+
+  themeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+  });
+}
+
+initThemeSettings();

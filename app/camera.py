@@ -1,11 +1,16 @@
 """Camera management and worker threads."""
+import base64
+import json
 import threading
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
 
-from .config import DEFAULT_CAMERA_REF, MAX_CAMERAS
+from .config import DEFAULT_CAMERA_REF, MAX_CAMERAS, UPLOADS_ROOT
 from .db import db
 from .inference import build_counts, draw_overlay, run_detection
 from .models import CameraRecord
@@ -20,6 +25,138 @@ from .utils import (
     parse_camera_reference,
     try_open_camera_with_backends,
 )
+
+
+INCIDENT_WINDOW_SEC = 120.0
+INCIDENT_CLIP_SEC = 10.0
+INCIDENT_SAMPLE_INTERVAL_SEC = 1.0
+INCIDENT_SAVE_COOLDOWN_SEC = 120.0
+INCIDENT_BASE64_PREVIEW_CHARS = 320
+INCIDENT_CLIP_FPS = 6.0
+INCIDENTS_DIR = UPLOADS_ROOT / "incidents"
+INCIDENTS_INDEX = INCIDENTS_DIR / "incidents.jsonl"
+_INCIDENT_IO_LOCK = threading.Lock()
+
+
+def _prediction_is_cheating(prediction: dict[str, Any]) -> bool:
+    """Return True if prediction label indicates cheating-like behavior."""
+    label = str(prediction.get("label", "")).strip().lower()
+    if not label:
+        return False
+    if "not_cheat" in label or "not cheating" in label:
+        return False
+    return "cheat" in label
+
+
+def _has_cheating_detection(predictions: list[dict[str, Any]]) -> bool:
+    """Check whether the current frame contains a cheating prediction."""
+    return any(_prediction_is_cheating(pred) for pred in predictions)
+
+
+def _window_counts(history: list[tuple[float, dict[str, int]]], now_ts: float) -> dict[str, int]:
+    """Aggregate detection counts over the last INCIDENT_WINDOW_SEC window."""
+    out: dict[str, int] = {}
+    cutoff = now_ts - INCIDENT_WINDOW_SEC
+    for ts, counts in history:
+        if ts < cutoff:
+            continue
+        for label, value in counts.items():
+            out[label] = out.get(label, 0) + int(value)
+    return out
+
+
+def _window_has_cheating(counts: dict[str, int]) -> bool:
+    """Return True if cheating appears in the aggregated window counts."""
+    for label, value in counts.items():
+        key = str(label).lower()
+        if value > 0 and "cheat" in key and "not" not in key:
+            return True
+    return False
+
+
+def _append_incident_frame(stats: dict[str, Any], now_ts: float, frame_bytes: bytes) -> None:
+    """Keep a low-rate rolling frame buffer for incident clip extraction."""
+    last_sample = float(stats.get("incident_last_sample_ts", 0.0))
+    if now_ts - last_sample < INCIDENT_SAMPLE_INTERVAL_SEC:
+        return
+
+    buffer = list(stats.get("incident_buffer", []))
+    buffer.append((now_ts, frame_bytes))
+    cutoff = now_ts - INCIDENT_WINDOW_SEC
+    buffer = [item for item in buffer if item[0] >= cutoff]
+
+    stats["incident_buffer"] = buffer
+    stats["incident_last_sample_ts"] = now_ts
+
+
+def _write_incident_clip(camera_id: str, samples: list[tuple[float, bytes]]) -> tuple[Path | None, str]:
+    """Write a short MP4 clip and return (path, base64_preview)."""
+    if not samples:
+        return None, ""
+
+    first_arr = np.frombuffer(samples[0][1], dtype="uint8")
+    first = cv2.imdecode(first_arr, cv2.IMREAD_COLOR)
+    if first is None:
+        return None, ""
+
+    h, w = first.shape[:2]
+    INCIDENTS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    clip_path = INCIDENTS_DIR / f"camera_{camera_id}_{ts}.mp4"
+
+    writer = cv2.VideoWriter(
+        str(clip_path),
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        INCIDENT_CLIP_FPS,
+        (w, h),
+    )
+    if not writer.isOpened():
+        return None, ""
+
+    try:
+        for _, frame_bytes in samples:
+            arr = np.frombuffer(frame_bytes, dtype="uint8")
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+            if frame.shape[1] != w or frame.shape[0] != h:
+                frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_LINEAR)
+            writer.write(frame)
+    finally:
+        writer.release()
+
+    if not clip_path.exists():
+        return None, ""
+
+    clip_bytes = clip_path.read_bytes()
+    b64 = base64.b64encode(clip_bytes).decode("ascii")
+    return clip_path, b64[:INCIDENT_BASE64_PREVIEW_CHARS]
+
+
+def _save_incident_reference(
+    camera_id: str,
+    camera_label: str,
+    counts_window: dict[str, int],
+    samples: list[tuple[float, bytes]],
+) -> dict[str, Any]:
+    """Persist cheating incident metadata and short base64 video reference."""
+    clip_path, preview_b64 = _write_incident_clip(camera_id, samples)
+    payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "camera_id": camera_id,
+        "camera_label": camera_label,
+        "window_seconds": int(INCIDENT_WINDOW_SEC),
+        "counts_window": counts_window,
+        "clip_path": str(clip_path) if clip_path is not None else None,
+        "clip_b64_short": preview_b64,
+    }
+
+    INCIDENTS_DIR.mkdir(parents=True, exist_ok=True)
+    with _INCIDENT_IO_LOCK:
+        with INCIDENTS_INDEX.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=True) + "\n")
+
+    return payload
 
 
 def _get_camera_by_id_nolock(camera_id: str) -> dict[str, str] | None:
@@ -50,6 +187,10 @@ def _init_camera_stats(camera_id: str, label: str, ref: str) -> None:
         "counts": {},
         "counts_text": "No objects detected.",
         "counts_history": [],
+        "incident_buffer": [],
+        "incident_last_sample_ts": 0.0,
+        "last_incident_save_ts": 0.0,
+        "last_incident_ref": "",
         "last_frame": None,
         "running": False,
         "error": None,
@@ -214,11 +355,36 @@ class CameraWorker(threading.Thread):
                         now_ts = time.time()
                         history = stats.get("counts_history", [])
                         history.append((now_ts, dict(last_counts)))
-                        # keep only last 60s
-                        cutoff = now_ts - 60.0
+                        # keep only last 2 minutes
+                        cutoff = now_ts - INCIDENT_WINDOW_SEC
                         history = [item for item in history if item[0] >= cutoff]
                         stats["counts_history"] = history
                         stats["last_frame"] = buffer.tobytes()
+                        _append_incident_frame(stats, now_ts, stats["last_frame"])
+
+                        if inference_enabled and _has_cheating_detection(predictions):
+                            last_saved = float(stats.get("last_incident_save_ts", 0.0))
+                            if now_ts - last_saved >= INCIDENT_SAVE_COOLDOWN_SEC:
+                                window_counts = _window_counts(history, now_ts)
+                                if _window_has_cheating(window_counts):
+                                    clip_cutoff = now_ts - INCIDENT_CLIP_SEC
+                                    clip_samples = [
+                                        item for item in stats.get("incident_buffer", [])
+                                        if item[0] >= clip_cutoff
+                                    ]
+                                    incident = _save_incident_reference(
+                                        camera_id=self.camera_id,
+                                        camera_label=str(stats.get("label", self.camera_id)),
+                                        counts_window=window_counts,
+                                        samples=clip_samples,
+                                    )
+                                    stats["last_incident_save_ts"] = now_ts
+                                    stats["last_incident_ref"] = incident.get("clip_b64_short", "")
+                                    print(
+                                        f"[Camera {self.camera_id}] Saved cheating incident reference "
+                                        f"({len(clip_samples)} frames, 2-minute window)"
+                                    )
+
                         stats["ref"] = current_ref or stats["ref"]
 
             frame_index += 1
